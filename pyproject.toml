@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name            = "llm-token-finder"
+version         = "0.1.0"
+description     = "Utility to find tokens in LLMs. Built for LLM interpretability research."
+authors         = [{name = "Marc North", email = "contact@marcnorth.co.uk"}]
+#readme          = "README.md"
+#license         = {file = "LICENSE"}
+requires-python = ">=3.12"
+dependencies    = [
+    "torch>=2.4.0",
+    "transformers>=4.44.0",
+    "jaxtyping>=0.3.0",
+    "transformer-lens>=2.15",
+    "circuitsvis>=1.43",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["examples/**", "docs/**"]
