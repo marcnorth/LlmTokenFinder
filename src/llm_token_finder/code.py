@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from transformers import PreTrainedTokenizer
 from llm_token_finder.token_finder import Token, Scope, TokenFinder
 
 
@@ -223,8 +224,8 @@ class FunctionFinder:
             Token(function_name_token.index - 1, self.tokens)
         )
 
-    # @staticmethod
-    # def create_for_tokenizer(tokenizer: PreTrainedTokenizer, tokens) -> "CodeTokenFinder":
-    #     space_special_character = tokenizer.tokenize(" hello")[0][0]
-    #     new_line_special_character = tokenizer.tokenize("\nhello")[0][0]
-    #     return CodeTokenFinder(tokens, space_token=space_special_character, new_line_token=new_line_special_character)
+    @staticmethod
+    def create_for_tokenizer(tokenizer: PreTrainedTokenizer, tokens) -> "FunctionFinder":
+        space_special_character = tokenizer.tokenize(" hello")[0][0]
+        new_line_special_character = tokenizer.tokenize("\nhello")[0][0]
+        return FunctionFinder(tokens, space_token=space_special_character, new_line_token=new_line_special_character)

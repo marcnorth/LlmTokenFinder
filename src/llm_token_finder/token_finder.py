@@ -141,7 +141,7 @@ class TokenFinder:
 
     @staticmethod
     def create_with_tokenizer(text: str, tokenizer: PreTrainedTokenizer) -> "TokenFinder":
-        tokens = tokenizer.tokenize(text)
+        tokens = tokenizer.tokenize(text, add_special_tokens=True)
         space_special_character = tokenizer.tokenize(" hello")[0][0]
         new_line_special_character = tokenizer.tokenize("\nhello")[0][0]
         return TokenFinder(tokens, space_token=space_special_character, new_line_token=new_line_special_character)

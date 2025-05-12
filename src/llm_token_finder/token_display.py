@@ -50,12 +50,19 @@ class TokenDisplayer:
         tokens = [token.replace(self.new_line_token, "↵\n").replace(self.space_token, " ") for token in tokens]
         return cv.tokens.colored_tokens_multi(tokens, values, tokens)
 
-    def html_for_attention_pattern(self, tokens: list[str], activation_cache: ActivationCache, head: AttentionHead) -> cv.tokens.RenderedHTML:
+    def html_for_token_attention(self, tokens: list[str], activation_cache: ActivationCache, head: AttentionHead) -> cv.tokens.RenderedHTML:
         """
         Generate HTML for the attention pattern of a given head
         """
         attention = activation_cache["pattern", head.layer][head.head]
         return self.html_for_pretty_colored_tokens_multi(tokens, attention.transpose(-2, -1))
+
+    def html_for_attention_pattern(selfself, tokens: list[str], activation_cache: ActivationCache, head: AttentionHead) -> cv.tokens.RenderedHTML:
+        """:
+        Generate HTML for the attention pattern of a given head
+        """
+        attention = activation_cache["pattern", head.layer][head.head]
+        return cv.attention.attention_pattern(tokens, attention)
 
     @staticmethod
     def create_for_tokenizer(tokenizer: PreTrainedTokenizer) -> "TokenDisplayer":
