@@ -1,9 +1,10 @@
-from typing import Callable
+from typing import Callable, Self
 from jaxtyping import Float
 from torch import Tensor
-from transformer_lens import ActivationCache
+from transformer_lens import ActivationCache, HookedTransformer
 from transformers import PreTrainedTokenizer
 from llm_token_finder import TokenFinder
+from llm_token_finder.token_finder import Token
 
 
 class AttentionHead:
@@ -16,9 +17,30 @@ class AttentionHead:
         self.layer = layer
         self.head = head
 
+    def __eq__(self, other):
+        if not isinstance(other, AttentionHead):
+            return NotImplemented
+        return self.layer == other.layer and self.head == other.head
+
+    def __hash__(self):
+        return hash((self.layer, self.head))
+
     def __repr__(self):
         return f"{self.layer}.{self.head}"
 
+    @staticmethod
+    def intersection(heads: list[list["AttentionHead"]]) -> list["AttentionHead"]:
+        """
+        Find the intersection of a list of lists of AttentionHead objects.
+        :param heads: A list of lists of AttentionHead objects.
+        :return: A list of AttentionHead objects that are in all of the lists.
+        """
+        if not heads:
+            return []
+        intersection = set(heads[0])
+        for head_list in heads[1:]:
+            intersection &= set(head_list)
+        return list(intersection)
 
 
 class ActivationAnalyzer:
@@ -32,6 +54,28 @@ class ActivationAnalyzer:
         self.token_finder = TokenFinder(tokens, space_token=space_token, new_line_token=new_line_token)
         self.space_token = space_token
         self.new_line_token = new_line_token
+
+    def find_heads_where_query_looks_at_value(self, query_token: Token | int, value_token: Token | int) -> list[AttentionHead]:
+        """
+        Find heads where the query token has the highest attention score on the value token.
+        :param query_token: The token (or token index) to look for in the query
+        :param value_token: The token (or token index) to look for in the value
+        """
+        return self.find_heads_where_query_looks_at_values(query_token, [value_token])
+
+    def find_heads_where_query_looks_at_values(self, query_token: Token | int, value_tokens: list[Token | int]) -> list[AttentionHead]:
+        """
+        Find heads where the query token has the highest attention score on all value tokens.
+        :param query_token: The token (or token index) to look for in the query
+        :param value_tokens: The tokens (or token indices) to look for in the values
+        """
+        query_token_index = query_token.index if isinstance(query_token, Token) else query_token
+        value_token_indices = [token.index if isinstance(token, Token) else token for token in value_tokens]
+        def criteria(attention: Float[Tensor, "q v"]) -> bool:
+            query_attention_scores = attention[query_token_index]
+            most_looked_at_token_indexes = query_attention_scores.topk(len(value_tokens)).indices.tolist()
+            return all(value_token_index in most_looked_at_token_indexes for value_token_index in value_token_indices)
+        return self.find_heads_matching_criteria(criteria)
 
     def find_heads_matching_criteria(
         self,
@@ -63,7 +107,14 @@ class ActivationAnalyzer:
         return matching_heads
 
     @staticmethod
-    def create_for_tokenizer(tokenizer: PreTrainedTokenizer, tokens: list[str], cache: ActivationCache) -> "ActivationAnalyzer":
+    def from_forward(llm: HookedTransformer, input: str) -> Self:
+        tokens = llm.tokenizer.tokenize(input, add_special_tokens=True)
+        token_ids = llm.tokenizer.encode(input, return_tensors="pt")
+        _, activation_cache = llm.run_with_cache(token_ids)
+        return ActivationAnalyzer(tokens, activation_cache)
+
+    @staticmethod
+    def create_from_tokenizer(tokenizer: PreTrainedTokenizer, tokens: list[str], cache: ActivationCache) -> "ActivationAnalyzer":
         space_special_character = tokenizer.tokenize(" hello")[0][0]
         new_line_special_character = tokenizer.tokenize("\nhello")[0][0]
         return ActivationAnalyzer(tokens, cache, space_token=space_special_character, new_line_token=new_line_special_character)

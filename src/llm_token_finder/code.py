@@ -52,6 +52,10 @@ class FunctionFinder:
         self._language = self._detect_language()
         self._token_finder = TokenFinder(self.tokens, space_token=self.space_token)
 
+    @property
+    def token_finder(self) -> TokenFinder:
+        return self._token_finder
+
     def _detect_language(self) -> str:
         """
         Detect the programming language of the tokens, supporting Python, Go, and Java.
@@ -225,7 +229,8 @@ class FunctionFinder:
         )
 
     @staticmethod
-    def create_for_tokenizer(tokenizer: PreTrainedTokenizer, tokens) -> "FunctionFinder":
+    def create_from_tokenizer(text: str, tokenizer: PreTrainedTokenizer) -> "FunctionFinder":
+        tokens = tokenizer.tokenize(text, add_special_tokens=True)
         space_special_character = tokenizer.tokenize(" hello")[0][0]
         new_line_special_character = tokenizer.tokenize("\nhello")[0][0]
         return FunctionFinder(tokens, space_token=space_special_character, new_line_token=new_line_special_character)
