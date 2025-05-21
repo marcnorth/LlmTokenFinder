@@ -1,4 +1,4 @@
-from typing import Callable, Self
+from typing import Callable
 from jaxtyping import Float
 from torch import Tensor
 from transformer_lens import ActivationCache, HookedTransformer
@@ -107,7 +107,7 @@ class ActivationAnalyzer:
         return matching_heads
 
     @staticmethod
-    def from_forward(llm: HookedTransformer, input: str) -> Self:
+    def from_forward_pass(llm: HookedTransformer, input: str) -> "ActivationAnalyzer":
         tokens = llm.tokenizer.tokenize(input, add_special_tokens=True)
         token_ids = llm.tokenizer.encode(input, return_tensors="pt")
         _, activation_cache = llm.run_with_cache(token_ids)
