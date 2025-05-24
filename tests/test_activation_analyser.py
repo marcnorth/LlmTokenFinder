@@ -1,6 +1,6 @@
 import unittest
 import torch
-from llm_token_finder import TokenFinder, Scope, ActivationAnalyzer
+from llm_token_finder import TokenFinder, TokenRange, ActivationAnalyzer
 from transformer_lens import utils, HookedTransformer, ActivationCache
 
 

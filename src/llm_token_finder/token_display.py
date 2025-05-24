@@ -4,7 +4,7 @@ from jaxtyping import Float
 from torch import Tensor
 from transformer_lens import ActivationCache
 from transformers import PreTrainedTokenizer
-from llm_token_finder import Scope
+from llm_token_finder import TokenRange
 from llm_token_finder.activation_analyser import AttentionHead
 from llm_token_finder.token_finder import Token
 
@@ -19,9 +19,9 @@ class TokenDisplayer:
         """
         Generate HTML for a token with context_len tokens on either side
         """
-        return self.html_for_scope_with_context(Scope(token.index, token.index, token.context), context_len)
+        return self.html_for_scope_with_context(TokenRange(token.index, token.index, token.context), context_len)
 
-    def html_for_scope_with_context(self, scope: Scope, context_len: int = 5) -> cv.tokens.RenderedHTML:
+    def html_for_scope_with_context(self, scope: TokenRange, context_len: int = 5) -> cv.tokens.RenderedHTML:
         """
         Generate HTML for a range of tokens with context_len tokens on either side
         """

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from transformers import PreTrainedTokenizer
-from llm_token_finder.token_finder import Token, Scope, TokenFinder
+from llm_token_finder.token_finder import Token, TokenRange, TokenFinder
 
 
 @dataclass
@@ -16,14 +16,14 @@ class CodeFunction:
 
     def __init__(
             self,
-            function_scope: Scope,
-            body_scope: Scope,
+            function_scope: TokenRange,
+            body_scope: TokenRange,
             function_name_token: Token,
             parameters: list[FunctionParameter],
             return_type_token: Token
     ):
-        self.function_scope: Scope = function_scope
-        self.body_scope: Scope = body_scope
+        self.function_scope: TokenRange = function_scope
+        self.body_scope: TokenRange = body_scope
         self.function_name_token: Token = function_name_token
         self.parameters: list[FunctionParameter] = parameters
         self.return_type_token: Token = return_type_token
@@ -98,15 +98,15 @@ class FunctionFinder:
             raise ValueError(f"Function name '{function_name}' is not preceded by 'def': '{self.tokens[function_name_token.index - 1]}'")
         # Find parameters
         parameters = []
-        next_closing_bracket = self._token_finder.find_first(")", Scope(function_name_token.index, None, self.tokens))
-        colons = self._token_finder.find_all(":", Scope(function_name_token.index, next_closing_bracket.index, self.tokens))
+        next_closing_bracket = self._token_finder.find_first(")", TokenRange(function_name_token.index, None, self.tokens))
+        colons = self._token_finder.find_all(":", TokenRange(function_name_token.index, next_closing_bracket.index, self.tokens))
         for colon in colons:
             parameters.append(FunctionParameter(
                 name=Token(colon.index - 1, self.tokens),
                 type=Token(colon.index + 1, self.tokens)
             ))
         # Find return type
-        next_colon = self._token_finder.find_first(":", Scope(next_closing_bracket.index, None, self.tokens))
+        next_colon = self._token_finder.find_first(":", TokenRange(next_closing_bracket.index, None, self.tokens))
         return_type_token = Token(next_colon.index - 1, self.tokens)
         # Find next line with no indentation
         try:
@@ -119,10 +119,10 @@ class FunctionFinder:
             next_no_indentation = len(self.tokens)
         if next_no_indentation < function_name_token.index:
             raise ValueError(f"next_no_indentation is less than function_name_token.index: {next_no_indentation} < {function_name_token.index}")
-        scope = Scope(function_name_token.index - 1, next_no_indentation, self.tokens)
+        scope = TokenRange(function_name_token.index - 1, next_no_indentation, self.tokens)
         return CodeFunction(
             scope,
-            Scope(return_type_token.index + 2, scope.end, self.tokens),
+            TokenRange(return_type_token.index + 2, scope.end, self.tokens),
             function_name_token,
             parameters,
             return_type_token
@@ -149,15 +149,15 @@ class FunctionFinder:
             elif token == "}" or token == f"{self.space_token}}}":
                 bracket_count -= 1
             if bracket_count == 0:
-                scope = Scope(function_name_token.index - 1, function_name_token.index + i, self.tokens)
+                scope = TokenRange(function_name_token.index - 1, function_name_token.index + i, self.tokens)
                 break
         if scope is None:
             raise ValueError(f"Could not find scope for function {function_name}")
         # Find parameters
         parameters = []
-        opening_bracket = self._token_finder.find_first("(", Scope(function_name_token.index, None, self.tokens))
-        next_closing_bracket = self._token_finder.find_first(")", Scope(function_name_token.index, None, self.tokens))
-        parameters_scope = Scope(opening_bracket.index, next_closing_bracket.index, self.tokens)
+        opening_bracket = self._token_finder.find_first("(", TokenRange(function_name_token.index, None, self.tokens))
+        next_closing_bracket = self._token_finder.find_first(")", TokenRange(function_name_token.index, None, self.tokens))
+        parameters_scope = TokenRange(opening_bracket.index, next_closing_bracket.index, self.tokens)
         if len(parameters_scope) > 2:
             parameters.append(FunctionParameter(
                 name=Token(parameters_scope.start + 1, self.tokens),
@@ -172,7 +172,7 @@ class FunctionFinder:
         body_open_token = self._token_finder.find_first("{", scope, allow_space_prefix=True)
         return CodeFunction(
             scope,
-            Scope(body_open_token.index + 1, scope.end - 1, self.tokens),
+            TokenRange(body_open_token.index + 1, scope.end - 1, self.tokens),
             function_name_token,
             parameters,
             Token(next_closing_bracket.index + 1, self.tokens)
@@ -199,15 +199,15 @@ class FunctionFinder:
             elif token == "}" or token == f"{self.space_token}}}":
                 bracket_count -= 1
             if bracket_count == 0:
-                scope = Scope(function_name_token.index - 2, function_name_token.index + i, self.tokens)
+                scope = TokenRange(function_name_token.index - 2, function_name_token.index + i, self.tokens)
                 break
         if scope is None:
             raise ValueError(f"Could not find scope for function {function_name}")
         # Find parameters
         parameters = []
-        opening_bracket = self._token_finder.find_first("(", Scope(function_name_token.index, None, self.tokens))
-        next_closing_bracket = self._token_finder.find_first(")", Scope(function_name_token.index, None, self.tokens))
-        parameters_scope = Scope(opening_bracket.index, next_closing_bracket.index, self.tokens)
+        opening_bracket = self._token_finder.find_first("(", TokenRange(function_name_token.index, None, self.tokens))
+        next_closing_bracket = self._token_finder.find_first(")", TokenRange(function_name_token.index, None, self.tokens))
+        parameters_scope = TokenRange(opening_bracket.index, next_closing_bracket.index, self.tokens)
         if len(parameters_scope) > 2:
             parameters.append(FunctionParameter(
                 name=Token(parameters_scope.start + 2, self.tokens),
@@ -222,7 +222,7 @@ class FunctionFinder:
         body_open_token = self._token_finder.find_first("{", scope, allow_space_prefix=True)
         return CodeFunction(
             scope,
-            Scope(body_open_token.index + 1, scope.end - 1, self.tokens),
+            TokenRange(body_open_token.index + 1, scope.end - 1, self.tokens),
             function_name_token,
             parameters,
             Token(function_name_token.index - 1, self.tokens)

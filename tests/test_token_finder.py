@@ -1,5 +1,5 @@
 import unittest
-from llm_token_finder import TokenFinder, Scope
+from llm_token_finder import TokenFinder, TokenRange
 
 
 class TokenFinderTest(unittest.TestCase):
@@ -28,11 +28,11 @@ class TokenFinderTest(unittest.TestCase):
         self.assertEqual(1, self.token_finder.find_first("b", allow_space_prefix=True).index)
 
     def test_find_first_in_scope(self):
-        scope = Scope(8, 10, self.tokens)
+        scope = TokenRange(8, 10, self.tokens)
         self.assertEqual(10, self.token_finder.find_first("b", scope).index)
 
     def test_find_first_in_scope_allow_space(self):
-        scope = Scope(3, 10, self.tokens)
+        scope = TokenRange(3, 10, self.tokens)
         self.assertEqual(4, self.token_finder.find_first("b", scope, allow_space_prefix=True).index)
 
     def test_find_first_of_any(self):
@@ -42,11 +42,11 @@ class TokenFinderTest(unittest.TestCase):
         self.assertEqual(1, self.token_finder.find_first_of_any(["c", "b"], allow_space_prefix=True).index)
 
     def test_find_first_of_any_in_scope(self):
-        scope = Scope(6, 10, self.tokens)
+        scope = TokenRange(6, 10, self.tokens)
         self.assertEqual(7, self.token_finder.find_first_of_any(["c", "b"], scope).index)
 
     def test_find_first_of_any_in_scope_allow_space(self):
-        scope = Scope(3, 10, self.tokens)
+        scope = TokenRange(3, 10, self.tokens)
         self.assertEqual(4, self.token_finder.find_first_of_any(["c", "b"], scope, allow_space_prefix=True).index)
 
     def test_find_last(self):
@@ -56,11 +56,11 @@ class TokenFinderTest(unittest.TestCase):
         self.assertEqual(10, self.token_finder.find_last("b", allow_space_prefix=True).index)
 
     def test_find_last_in_scope(self):
-        scope = Scope(0, 8, self.tokens)
+        scope = TokenRange(0, 8, self.tokens)
         self.assertEqual(7, self.token_finder.find_last("b", scope).index)
 
     def test_find_last_in_scope_allow_space(self):
-        scope = Scope(0, 8, self.tokens)
+        scope = TokenRange(0, 8, self.tokens)
         self.assertEqual(7, self.token_finder.find_last("b", scope, allow_space_prefix=True).index)
 
     def test_find_last_of_any(self):
@@ -70,11 +70,11 @@ class TokenFinderTest(unittest.TestCase):
         self.assertEqual(10, self.token_finder.find_last_of_any(["a", "b"], allow_space_prefix=True).index)
 
     def test_find_last_of_any_in_scope(self):
-        scope = Scope(0, 8, self.tokens)
+        scope = TokenRange(0, 8, self.tokens)
         self.assertEqual(7, self.token_finder.find_last_of_any(["a", "b"], scope).index)
 
     def test_find_last_of_any_in_scope_allow_space(self):
-        scope = Scope(0, 8, self.tokens)
+        scope = TokenRange(0, 8, self.tokens)
         self.assertEqual(7, self.token_finder.find_last_of_any(["a", "b"], scope, allow_space_prefix=True).index)
 
     def test_find_all(self):
