@@ -48,7 +48,11 @@ class TokenDisplayer:
         if values.ndim != 2:
             raise ValueError(f"Values must be 2D, given tensor has shape {values.shape}")
         tokens = [token.replace(self.new_line_token, "↵\n").replace(self.space_token, " ") for token in tokens]
-        return cv.tokens.colored_tokens_multi(tokens, values, tokens)
+        html = cv.tokens.colored_tokens_multi(tokens, values, tokens)
+        # TODO: Look into why there is a massive margin at the bottom of the HTML, I think it's to do with the tooltip. For now this is a hacky 'fix' to remove it.
+        padding = len(tokens) * 20
+        html.cdn_src = html.cdn_src.replace(r'style="margin: 15px 0;"', f"style=\"margin: 15px 0; margin-bottom: -{padding}px\"")
+        return html
 
     def html_for_token_attention(self, tokens: list[str], activation_cache: ActivationCache, head: AttentionHead) -> cv.tokens.RenderedHTML:
         """

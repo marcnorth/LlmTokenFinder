@@ -1,3 +1,4 @@
 .idea
 /TODO
 __pycache__
+.ipynb_checkpoints
