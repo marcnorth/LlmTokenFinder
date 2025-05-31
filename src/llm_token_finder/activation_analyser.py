@@ -69,8 +69,8 @@ class ActivationAnalyzer:
         :param query_token: The token (or token index) to look for in the query
         :param value_tokens: The tokens (or token indices) to look for in the values
         """
-        query_token_index = query_token.index if isinstance(query_token, Token) else query_token
-        value_token_indices = [token.index if isinstance(token, Token) else token for token in value_tokens]
+        query_token_index = query_token if isinstance(query_token, int) else query_token.index
+        value_token_indices = [token if isinstance(token, int) else token.index for token in value_tokens]
         def criteria(attention: Float[Tensor, "q v"]) -> bool:
             query_attention_scores = attention[query_token_index]
             most_looked_at_token_indexes = query_attention_scores.topk(len(value_tokens)).indices.tolist()

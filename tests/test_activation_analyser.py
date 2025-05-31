@@ -31,6 +31,14 @@ class ActivationAnalyserTest(unittest.TestCase):
         self.assertEqual(matching_heads[0].layer, 2)
         self.assertEqual(matching_heads[0].head, 8)
 
+    def test_heads_where_query_looks_at_value_errors_with_range(self):
+        # Ensure that the method raises an error when a TokenRange is passed instead of a single token
+        token_finder = TokenFinder.create_from_tokenizer(self.text, self.llm.tokenizer)
+        quick_brown = token_finder.find_first_range("quick brown", allow_space_prefix=True)
+        fox = token_finder.find_first("fox", allow_space_prefix=True)
+        with self.assertRaises(Exception):
+            self.activation_analyser.find_heads_where_query_looks_at_value(fox, quick_brown)
+
     def test_heads_where_query_looks_at_values(self):
         # Find heads where the word "fox" looks at the words "quick" and "brown" more than any other token
         token_finder = TokenFinder.create_from_tokenizer(self.text, self.llm.tokenizer)
