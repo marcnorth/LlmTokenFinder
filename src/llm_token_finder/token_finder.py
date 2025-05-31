@@ -14,6 +14,29 @@ class TokenRange:
     def __len__(self) -> int:
         return self.end - self.start + 1
 
+    def __getitem__(self, index: int) -> "TokenRange":
+        if isinstance(index, slice):
+            relative_start = index.start if index.start is not None else 0
+            relative_end = index.stop if index.stop is not None else len(self)
+            if relative_start < 0:
+                relative_start += len(self)
+            if relative_end < 0:
+                relative_end += len(self)
+            if relative_start < 0 or relative_start > len(self):
+                raise IndexError(f"Start index {relative_start} out of range for TokenRange {self}")
+            if relative_end < 0 or relative_end > len(self):
+                raise IndexError(f"End index {relative_end} out of range for TokenRange {self}")
+            return TokenRange(
+                start=self.start + relative_start,
+                end=self.start + relative_end - 1,
+                context=self.context
+            )
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError(f"Index {index} out of range for TokenRange {self}")
+        return Token(self.start + index, self.context)
+
     @property
     def reversed_start(self) -> int:
         return len(self.context) - self.end - 1
@@ -33,9 +56,6 @@ class TokenRange:
 
     def find_first_range(self, needle: str, allow_space_prefix=False) -> "TokenRange":
         return TokenFinder(self.context).find_first_range(needle, self, allow_space_prefix)
-
-    def __len__(self) -> int:
-        return self.end - self.start + 1
 
     def __contains__(self, index: int) -> bool:
         return self.start <= index <= self.end
