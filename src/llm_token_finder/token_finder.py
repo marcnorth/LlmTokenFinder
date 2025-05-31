@@ -31,14 +31,20 @@ class TokenRange:
     def find_all(self, token: str | list[str], allow_space_prefix=False) -> list["Token"]:
         return TokenFinder(self.context).find_all(token, self, allow_space_prefix)
 
+    def find_first_range(self, needle: str, allow_space_prefix=False) -> "TokenRange":
+        return TokenFinder(self.context).find_first_range(needle, self, allow_space_prefix)
+
     def __len__(self) -> int:
         return self.end - self.start + 1
 
     def __contains__(self, index: int) -> bool:
         return self.start <= index <= self.end
 
+    def to_string(self):
+        return "".join(self.context[self.start:self.end + 1])
+
     def __repr__(self):
-        return f"Scope(start={self.start} '{self.context[self.start]}', end={self.end} '{self.context[self.end]}')"
+        return f"TokenRange(start={self.start} '{self.context[self.start]}', end={self.end} '{self.context[self.end]}')"
 
 
 class Token(TokenRange):
@@ -153,18 +159,28 @@ class TokenFinder:
         """
         needle = needle.replace(" ", self.space_token).replace("\n", self.new_line_token)
         haystack = self.tokens[scope.start:scope.end + 1] if scope else self.tokens
-        if allow_space_prefix:
-            needle = f"{self.space_token}{needle}"
         for haystack_index in range(len(haystack)):
             num_tokens = self._tokens_start_with_string(haystack[haystack_index:], needle)
             if num_tokens > 0:
-                return TokenRange(
+                first_range = TokenRange(
                     haystack_index + scope.start if scope else haystack_index,
                     haystack_index + num_tokens - 1 + scope.start if scope else haystack_index + num_tokens - 1,
                     self.tokens
                 )
+                if first_range.start == first_range.end:
+                    first_range = Token(first_range.start, self.tokens)
+                if not allow_space_prefix or needle.startswith(self.space_token):
+                    return first_range
+                # Check if it also matches with a space prefix
+                try:
+                    first_with_space_prefix = self.find_first_range(f"{self.space_token}{needle}", scope, allow_space_prefix=False)
+                    return first_range if first_range.start < first_with_space_prefix.start else first_with_space_prefix
+                except ValueError:
+                    return first_range
             elif num_tokens == -1:
                 continue
+        if allow_space_prefix and not needle.startswith(self.space_token):
+            return self.find_first_range(f"{self.space_token}{needle}", scope, allow_space_prefix=False)
         raise ValueError(f"Needle '{needle}' not found in the given scope")
 
     def _tokens_start_with_string(self, tokens: list[str], string: str) -> int:

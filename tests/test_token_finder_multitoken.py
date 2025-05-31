@@ -1,5 +1,6 @@
 import unittest
-from llm_token_finder import TokenFinder
+from llm_token_finder import TokenFinder, TokenRange
+from llm_token_finder.token_finder import Token
 
 
 class TokenFinderTest(unittest.TestCase):
@@ -39,7 +40,21 @@ class TokenFinderTest(unittest.TestCase):
         self.assertEqual(with_prefix.start, 5)
         self.assertEqual(with_prefix.end, 6)
 
+    def test_start_with_space(self):
+        without_prefix = self.token_finder.find_first_range(" a b c", allow_space_prefix=True)
+        self.assertEqual(without_prefix.start, 0)
+        self.assertEqual(without_prefix.end, 2)
+
     def test_with_spaces_in_between(self):
         result = self.token_finder.find_first_range("a b c", allow_space_prefix=True)
         self.assertEqual(result.start, 0)
         self.assertEqual(result.end, 2)
+
+    def test_returns_token_if_range_is_single_token(self):
+        result = self.token_finder.find_first_range("ab", allow_space_prefix=False)
+        self.assertEqual(result.start, 6)
+        self.assertEqual(result.end, 6)
+        self.assertIsInstance(result, TokenRange)
+        self.assertIsInstance(result, Token)
+        self.assertEqual(result.index, 6)
+        self.assertEqual(result.value, "ab")

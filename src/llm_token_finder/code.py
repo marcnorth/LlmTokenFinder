@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from transformers import PreTrainedTokenizer
 from llm_token_finder.token_finder import Token, TokenRange, TokenFinder
@@ -5,8 +6,8 @@ from llm_token_finder.token_finder import Token, TokenRange, TokenFinder
 
 @dataclass
 class FunctionParameter:
-    name: Token
-    type: Token
+    name: TokenRange
+    type: TokenRange
 
 
 class CodeFunction:
@@ -18,13 +19,13 @@ class CodeFunction:
             self,
             function_scope: TokenRange,
             body_scope: TokenRange,
-            function_name_token: Token,
+            function_name_token: TokenRange,
             parameters: list[FunctionParameter],
             return_type_token: Token
     ):
         self.function_scope: TokenRange = function_scope
         self.body_scope: TokenRange = body_scope
-        self.function_name_token: Token = function_name_token
+        self.function_name_token: TokenRange = function_name_token
         self.parameters: list[FunctionParameter] = parameters
         self.return_type_token: Token = return_type_token
 
@@ -90,40 +91,43 @@ class FunctionFinder:
         """
         Find the start and end of a python function scope given the function name
         """
-        function_name_token = self._token_finder.find_first(function_name, allow_space_prefix=True)
-        if self.tokens[function_name_token.index - 1] != "def" and self.tokens[function_name_token.index - 1] != f"{self.space_token}def":
-            print(f"Found function name '{function_name}' at index {function_name_token.index}")
-            for i in range(10):
-                print(f"{i}: {self.tokens[i]}")
-            raise ValueError(f"Function name '{function_name}' is not preceded by 'def': '{self.tokens[function_name_token.index - 1]}'")
+        function_name_tokens_with_open_bracket = self._token_finder.find_first_range(f"{function_name}(", allow_space_prefix=True)
+        function_name_tokens = TokenRange(function_name_tokens_with_open_bracket.start, function_name_tokens_with_open_bracket.end - 1, self.tokens)
+        if function_name_tokens.end == function_name_tokens.start:
+            function_name_tokens = Token(function_name_tokens.start, self.tokens)
+        if self.tokens[function_name_tokens.start - 1] != "def" and self.tokens[function_name_tokens.start - 1] != f"{self.space_token}def":
+            raise ValueError(f"Function name '{function_name}' is not preceded by 'def': '{self.tokens[function_name_tokens.index - 1]}'")
         # Find parameters
         parameters = []
-        next_closing_bracket = self._token_finder.find_first(")", TokenRange(function_name_token.index, None, self.tokens))
-        colons = self._token_finder.find_all(":", TokenRange(function_name_token.index, next_closing_bracket.index, self.tokens))
-        for colon in colons:
-            parameters.append(FunctionParameter(
-                name=Token(colon.index - 1, self.tokens),
-                type=Token(colon.index + 1, self.tokens)
-            ))
+        next_closing_bracket = self._token_finder.find_first(")", TokenRange(function_name_tokens.end, None, self.tokens))
+        parameters_scope = TokenRange(function_name_tokens.end + 1, next_closing_bracket.index, self.tokens)
+        parameters_as_string = "".join(parameters_scope.to_string())
+        parameter_names = re.findall(r"([^():,\s]+):([^():,\s]+)", parameters_as_string)
+        remaining_parameter_search_scope = TokenRange(parameters_scope.start, parameters_scope.end, parameters_scope.context)
+        for parameter_name, parameter_type in parameter_names:
+            parameter_name_tokens = remaining_parameter_search_scope.find_first_range(parameter_name, allow_space_prefix=True)
+            parameter_type_tokens = remaining_parameter_search_scope.find_first_range(parameter_type, allow_space_prefix=True)
+            parameters.append(FunctionParameter(parameter_name_tokens, parameter_type_tokens))
+            remaining_parameter_search_scope.start = parameter_type_tokens.end + 1
         # Find return type
         next_colon = self._token_finder.find_first(":", TokenRange(next_closing_bracket.index, None, self.tokens))
         return_type_token = Token(next_colon.index - 1, self.tokens)
         # Find next line with no indentation
         try:
             next_no_indentation = len(self.tokens) - 1
-            for i, token in enumerate(self.tokens[function_name_token.index:]):
-                if token == self.new_line_token and not self.tokens[function_name_token.index + i + 1].startswith(self.space_token) and not self.tokens[function_name_token.index + i + 1].startswith(" "):
-                    next_no_indentation = function_name_token.index + i
+            for i, token in enumerate(self.tokens[function_name_tokens.end:]):
+                if token == self.new_line_token and not self.tokens[function_name_tokens.end + i + 1].startswith(self.space_token) and not self.tokens[function_name_tokens.end + i + 1].startswith(" "):
+                    next_no_indentation = function_name_tokens.end + i
                     break
         except IndexError:
             next_no_indentation = len(self.tokens)
-        if next_no_indentation < function_name_token.index:
-            raise ValueError(f"next_no_indentation is less than function_name_token.index: {next_no_indentation} < {function_name_token.index}")
-        scope = TokenRange(function_name_token.index - 1, next_no_indentation, self.tokens)
+        if next_no_indentation < function_name_tokens.end:
+            raise ValueError(f"next_no_indentation is less than function_name_token.index: {next_no_indentation} < {function_name_tokens.end}")
+        scope = TokenRange(function_name_tokens.start - 1, next_no_indentation, self.tokens)
         return CodeFunction(
             scope,
             TokenRange(return_type_token.index + 2, scope.end, self.tokens),
-            function_name_token,
+            function_name_tokens,
             parameters,
             return_type_token
         )
