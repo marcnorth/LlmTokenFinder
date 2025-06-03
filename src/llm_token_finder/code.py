@@ -91,8 +91,8 @@ class FunctionFinder:
         """
         Find the start and end of a python function scope given the function name
         """
-        function_name_tokens_with_open_bracket = self._token_finder.find_first_range(f"{function_name}(", allow_space_prefix=True)
-        function_name_tokens = TokenRange(function_name_tokens_with_open_bracket.start, function_name_tokens_with_open_bracket.end - 1, self.tokens)
+        function_name_tokens_with_open_bracket = self._token_finder.find_first_range(f"def {function_name}(", allow_space_prefix=True, allow_partial_final_token_match=True)
+        function_name_tokens = TokenRange(function_name_tokens_with_open_bracket.start + 1, function_name_tokens_with_open_bracket.end - 1, self.tokens)
         if function_name_tokens.end == function_name_tokens.start:
             function_name_tokens = Token(function_name_tokens.start, self.tokens)
         if self.tokens[function_name_tokens.start - 1] != "def" and self.tokens[function_name_tokens.start - 1] != f"{self.space_token}def":
@@ -101,8 +101,9 @@ class FunctionFinder:
         parameters = []
         next_closing_bracket = self._token_finder.find_first(")", TokenRange(function_name_tokens.end, None, self.tokens))
         parameters_scope = TokenRange(function_name_tokens.end + 1, next_closing_bracket.index, self.tokens)
-        parameters_as_string = "".join(parameters_scope.to_string())
-        parameter_names = re.findall(r"([^():,\s]+):([^():,\s]+)", parameters_as_string)
+        parameters_as_string = parameters_scope.to_string().replace(self.new_line_token, "\n").replace(self.space_token, " ")
+        parameter_names = re.findall(r"([^():,]+):([^():,]+)", parameters_as_string)
+        parameter_names = [(name.strip(), type_.strip()) for name, type_ in parameter_names]
         remaining_parameter_search_scope = TokenRange(parameters_scope.start, parameters_scope.end, parameters_scope.context)
         for parameter_name, parameter_type in parameter_names:
             parameter_name_tokens = remaining_parameter_search_scope.find_first_range(parameter_name, allow_space_prefix=True)
@@ -110,7 +111,7 @@ class FunctionFinder:
             parameters.append(FunctionParameter(parameter_name_tokens, parameter_type_tokens))
             remaining_parameter_search_scope.start = parameter_type_tokens.end + 1
         # Find return type
-        next_colon = self._token_finder.find_first(":", TokenRange(next_closing_bracket.index, None, self.tokens))
+        next_colon = self._token_finder.find_first_of_any([":", f":{self.new_line_token}"], TokenRange(next_closing_bracket.index, None, self.tokens))
         return_type_token = Token(next_colon.index - 1, self.tokens)
         # Find next line with no indentation
         try:
