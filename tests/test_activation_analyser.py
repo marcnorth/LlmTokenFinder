@@ -1,7 +1,7 @@
 import unittest
 import torch
-from llm_token_finder import TokenFinder, TokenRange, ActivationAnalyzer
-from transformer_lens import utils, HookedTransformer, ActivationCache
+from llm_token_finder import TokenFinder, ActivationAnalyzer
+from transformer_lens import HookedTransformer
 
 
 class ActivationAnalyserTest(unittest.TestCase):
