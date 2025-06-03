@@ -63,7 +63,7 @@ class ActivationAnalyzer:
             self,
             query_token: Token | int,
             value_token: Token | int,
-            ignore_bos: bool = True
+            ignore_bos: bool = False
     ) -> list[AttentionHead]:
         """
         Find heads where the query token has the highest attention score on the value token.
@@ -76,7 +76,7 @@ class ActivationAnalyzer:
     def find_heads_where_query_looks_at_values(
             self, query_token: Token | int,
             value_tokens: list[Token | int],
-            ignore_bos: bool = True
+            ignore_bos: bool = False
     ) -> list[AttentionHead]:
         """
         Find heads where the query token has the highest attention score on all value tokens.
