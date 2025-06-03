@@ -29,7 +29,7 @@ class TokenFinderTest(unittest.TestCase):
         self.assertEqual(result[1].index, 7)
         self.assertEqual(result[1].value, "c")
 
-    def test_wont_match_partial_tokens(self):
+    def test_wont_match_partial_tokens_by_default(self):
         full_match = self.token_finder.find_first_range("cab", allow_space_prefix=False)
         self.assertEqual(full_match.start, 7)
         self.assertEqual(full_match.end, 8)
@@ -62,3 +62,9 @@ class TokenFinderTest(unittest.TestCase):
         self.assertIsInstance(result, Token)
         self.assertEqual(result.index, 6)
         self.assertEqual(result.value, "ab")
+
+    def test_allow_partial_match(self):
+        result = self.token_finder.find_first_range("abca", allow_space_prefix=False, allow_partial_final_token_match=True)
+        self.assertEqual(result.start, 6)
+        self.assertEqual(result.end, 8)
+        self.assertEqual("abcab", result.to_string())

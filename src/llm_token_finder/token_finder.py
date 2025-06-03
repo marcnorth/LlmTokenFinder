@@ -168,19 +168,26 @@ class TokenFinder:
         instances.sort(key=lambda token: token.index)
         return instances
 
-    def find_first_range(self, needle: str, scope: TokenRange = None, allow_space_prefix=False) -> TokenRange:
+    def find_first_range(
+            self,
+            needle: str,
+            scope: TokenRange = None,
+            allow_space_prefix = False,
+            allow_partial_final_token_match = False
+    ) -> TokenRange:
         """
         Find the first instance of the given string in the list of tokens and return a TokenRange
         Similar to find_first, but will search for strings that span multiple tokens and return a range of tokens.
         :param needle: The string to search for
         :param scope: The scope to search in, if None, search in the whole list of tokens
         :param allow_space_prefix: Since tokenization often includes a space token before the actual token, allow either. E.g. if space_token is "Ġ" and token is "a", find first instance of either "Ġa" or "a"
+        :param allow_partial_final_token_match: If True, the last token in the range may be a partial match, i.e. it may not match the whole token, but only a prefix of it. E.g. if the needle is "The cat" and the last token is "catapult" - tokenized as ["The", "Ġcatapult"] - this will still match.
         :return:
         """
         needle = needle.replace(" ", self.space_token).replace("\n", self.new_line_token)
         haystack = self.tokens[scope.start:scope.end + 1] if scope else self.tokens
         for haystack_index in range(len(haystack)):
-            num_tokens = self._tokens_start_with_string(haystack[haystack_index:], needle)
+            num_tokens = self._tokens_start_with_string(haystack[haystack_index:], needle, allow_partial_final_token_match)
             if num_tokens > 0:
                 first_range = TokenRange(
                     haystack_index + scope.start if scope else haystack_index,
@@ -203,22 +210,25 @@ class TokenFinder:
             return self.find_first_range(f"{self.space_token}{needle}", scope, allow_space_prefix=False)
         raise ValueError(f"Needle '{needle}' not found in the given scope")
 
-    def _tokens_start_with_string(self, tokens: list[str], string: str) -> int:
+    def _tokens_start_with_string(self, tokens: list[str], string: str, allow_partial_final_token_match = False) -> int:
         """
         Check if the list of tokens starts with the given string. The string may span multiple tokens,
-        but MUST match a whole number of tokens, i.e. it cannot match a substring of a token.
+        but MUST match a whole number of tokens, i.e. it cannot match a substring of a token, unless
+        allow_partial_final_token_match is True, in which case the last token may be a partial match.
         Examples:
         _tokens_start_with_string(["a", "b", "c"], "a") -> True
         _tokens_start_with_string(["a", "b", "c"], "ab") -> True
-        _tokens_start_with_string(["ab"], "a") -> False
+        _tokens_start_with_string(["ab"], "a") -> False (if allow_partial_final_token_match is False)
+        _tokens_start_with_string(["ab"], "a", allow_partial_final_token_match=True) -> True
         :param tokens: The list of tokens to check
         :param string: The string to check for
+        :param allow_partial_final_token_match: If True, the last token in the range may be a partial match, i.e. it may not match the whole token, but only a prefix of it. E.g. if the needle is "The cat" and the last token is "catapult" - tokenized as ["The", "Ġcatapult"] - this will still match.
         :return: The number of tokens that match the string, or -1 if the string does not match
         """
         string_to_check = ""
         for token_index, token in enumerate(tokens):
             string_to_check += token
-            if string_to_check == string:
+            if (allow_partial_final_token_match and string_to_check.startswith(string)) or (not allow_partial_final_token_match and string_to_check == string):
                 return token_index + 1
             elif not string.startswith(string_to_check):
                 return -1
