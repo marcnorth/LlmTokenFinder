@@ -19,6 +19,7 @@ class ActivationDatasetGenerator:
         class_labels: list[str],
         layer: int,
         head: int | None = None,
+        meta_data: dict[str, str | int | None] = None
     ):
         """
         It is recommended to use the static factory methods to create instances of this class.
@@ -27,20 +28,29 @@ class ActivationDatasetGenerator:
         :param class_labels: A list (map of int to str) of class labels for the dataset. This will be used to create metadata for the dataset.
         :param layer: The 0-indexed layer number from which to extract activations.
         :param head: The 0-indexed head number from which to extract activations. If set, activations from this head's output will be used. If not set, the residual stream of the layer will be used.
+        :param meta_data: Additional metadata to save with the dataset.
         """
         self._llm = llm
         self._input_generator = input_generator
         self._class_labels = class_labels
         self._layer = layer
         self._head = head
+        if meta_data is None:
+            meta_data = {}
+        self._extra_meta_data = meta_data
 
     def generate_and_save_to(self, output_file: TextIO):
         output_file.write(json.dumps(self._meta_data) + "\n")
+        self._llm.reset_hooks()
         for activation_input in self._input_generator():
             if len(self._class_labels) <= activation_input.label_class_index:
                 raise ValueError(f"Label class index {activation_input.label_class_index} is out of bounds for class labels: {self._class_labels}")
             token_ids = self._llm.tokenizer.encode(activation_input.text, return_tensors="pt")
-            _, cache = self._llm.run_with_cache(token_ids, remove_batch_dim=True)
+            _, cache = self._llm.run_with_cache(
+                token_ids,
+                remove_batch_dim=True,
+                names_filter=lambda name: name == f"blocks.{self._layer}.attn.hook_result" if self._head else f"blocks.{self._layer}.hook_resid_post"
+            )
             if self._head is not None:
                 # Extract the output of the specified attention head
                 activations = cache["result", self._layer][activation_input.token_position][self._head]
@@ -55,18 +65,19 @@ class ActivationDatasetGenerator:
     @property
     def _meta_data(self) -> dict[str, str | int | None]:
         return {
-            "layer_index": self._layer,
-            "head_index": self._head,
+            "layer": self._layer,
+            "head": self._head,
             "class_labels": self._class_labels,
             "llm": self._llm.cfg.model_name,
-        }
+        } | self._extra_meta_data.copy()
 
     @staticmethod
     def create_residual_stream_generator(
         llm: HookedTransformer,
         input_generator: Callable[[], Generator[ActivationGeneratorInput, None, None]],
         class_labels: list[str],
-        layer: int
+        layer: int,
+        meta_data: dict[str, str | int | None] = None
     ) -> "ActivationDatasetGenerator":
         """
         Creates a generator that yields the residual stream activations for the specified layer.
@@ -74,16 +85,25 @@ class ActivationDatasetGenerator:
         :param input_generator: An iterator that yields input text for each forward pass. Each item should be a tuple of (input_text, token_position). Token_position can either be an int or a callable that will return an int given the corresponding input_text.
         :param class_labels: A list of class labels for the dataset. This will be used to create metadata for the dataset.
         :param layer: The 0-indexed layer number from which to extract residual stream activations.
+        :param meta_data: Additional metadata to save with the dataset.
         :return: An instance of ActivationDatasetGenerator configured for residual stream activations.
         """
-        return ActivationDatasetGenerator(llm, input_generator=input_generator, class_labels=class_labels, layer=layer, head=None)
+        return ActivationDatasetGenerator(
+            llm,
+            input_generator=input_generator,
+            class_labels=class_labels,
+            layer=layer,
+            head=None,
+            meta_data=meta_data
+        )
 
     @staticmethod
     def create_attention_head_output_generator(
         llm: HookedTransformer,
         input_generator: Callable[[], Generator[ActivationGeneratorInput, None, None]],
         class_labels: list[str],
-        head: AttentionHead
+        head: AttentionHead,
+        meta_data: dict[str, str | int | None] = None
     ) -> "ActivationDatasetGenerator":
         """
         Creates a generator that yields the output activations of the specified attention head.
@@ -91,6 +111,15 @@ class ActivationDatasetGenerator:
         :param input_generator: An iterator that yields input text for each forward pass. Each item should be a tuple of (input_text, token_position). Token_position can either be an int or a callable that will return an int given the corresponding input_text.
         :param class_labels: A list of class labels for the dataset. This will be used to create metadata for the dataset.
         :param head: The attention head to extract output activations from.
+        :param meta_data: Additional metadata to save with the dataset.
         :return: An instance of ActivationDatasetGenerator configured for the specified attention head.
         """
-        return ActivationDatasetGenerator(llm, input_generator=input_generator, class_labels=class_labels, layer=head.layer, head=head.head)
+        llm.set_use_attn_result(True)
+        return ActivationDatasetGenerator(
+            llm,
+            input_generator=input_generator,
+            class_labels=class_labels,
+            layer=head.layer,
+            head=head.head,
+            meta_data=meta_data
+        )
