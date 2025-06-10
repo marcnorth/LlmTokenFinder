@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+import datetime
 from typing import TextIO, Callable, Generator
 from transformer_lens import HookedTransformer
 from llm_token_finder.ablation import AblationLlm
@@ -85,6 +86,7 @@ class ActivationDatasetGenerator:
             "head": self._head,
             "class_labels": self._class_labels,
             "llm": self._llm.cfg.model_name,
+            "timestamp": datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         } | self._extra_meta_data.copy()
 
     @staticmethod

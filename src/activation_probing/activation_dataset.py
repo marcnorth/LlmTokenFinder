@@ -1,9 +1,10 @@
 from typing import TextIO
-
+import json
+import torch
 from jaxtyping import Float, Int
 from torch import Tensor, nn
 from torch.utils.data import TensorDataset, random_split, DataLoader
-import torch
+from activation_probing.probe import ActivationProbe
 
 
 class ActivationDataset(TensorDataset):
@@ -47,12 +48,16 @@ class ActivationDataset(TensorDataset):
             training_test_split: float = 0.8,
             device: str = "cuda",
             return_history: bool = False
-    ) -> tuple["SingleLayerNet", DataLoader, DataLoader, dict[str, list[float]] | None]:
+    ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]] | None]:
         """
         Trains a single-layer probe on the dataset.
         :return: A tuple containing the trained probe model, the training and testing dataloaders and optionally the training history.
         """
-        probe = SingleLayerNet(self.activation_dim, len(self.class_labels)).to(device=device)
+        probe = ActivationProbe(
+            self.activation_dim,
+            len(self.class_labels),
+            activation_dataset_meta_data=self.meta_data,
+        ).to(device=device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(probe.parameters(), lr=learning_rate)
         training_dataloader, testing_dataloader = self._create_probe_training_dataloaders(training_test_split, batch_size)
@@ -75,7 +80,7 @@ class ActivationDataset(TensorDataset):
 
     def _train_probe_for_one_epoch(
             self,
-            probe: "SingleLayerNet",
+            probe: ActivationProbe,
             dataloader: DataLoader,
             optimizer: torch.optim.Optimizer,
             criterion: nn.Module
@@ -90,7 +95,7 @@ class ActivationDataset(TensorDataset):
             loss.backward()
             optimizer.step()
 
-    def evaluate_probe(self, probe: "SingleLayerNet", dataloader: DataLoader) -> float:
+    def evaluate_probe(self, probe: ActivationProbe, dataloader: DataLoader) -> float:
         """
         :return: The accuracy of the probe on the dataset.
         """
@@ -122,8 +127,6 @@ class ActivationDataset(TensorDataset):
         :param file: A file-like object containing the dataset.
         :return: An instance of ActivationDataset.
         """
-        # File is a jsonl file.
-        import json
         activations = []
         labels = []
         meta_data = None
@@ -144,12 +147,3 @@ class ActivationDataset(TensorDataset):
             labels=torch.tensor(labels, dtype=torch.int64, device=device),
             meta_data=meta_data,
         )
-
-
-class SingleLayerNet(nn.Module):
-    def __init__(self, num_input_features: int, num_classes: int):
-        super().__init__()
-        self.linear = nn.Linear(num_input_features, num_classes)
-
-    def forward(self, x):
-        return self.linear(x)

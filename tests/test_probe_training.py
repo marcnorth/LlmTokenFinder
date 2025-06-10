@@ -4,6 +4,7 @@ import torch
 from transformer_lens import HookedTransformer
 from activation_probing.activation_dataset import ActivationDataset
 from activation_probing.activation_dataset_generator import ActivationDatasetGenerator, ActivationGeneratorInput
+from activation_probing.probe import ActivationProbe
 from llm_token_finder.activation_analyser import AttentionHead
 
 
@@ -131,8 +132,8 @@ class AblationTest(unittest.TestCase):
             learning_rate=0.01,
             device=llm.cfg.device,
         )
-        self.assertEqual(loaded_dataset.activation_dim, probe.linear.in_features)
-        self.assertEqual(len(class_labels), probe.linear.out_features)
+        self.assertEqual(loaded_dataset.activation_dim, probe.linear1.in_features)
+        self.assertEqual(len(class_labels), probe.linear2.out_features)
         # Test
         probe.eval()
         with torch.no_grad():
@@ -150,3 +151,41 @@ class AblationTest(unittest.TestCase):
             dog_prediction_logits = probe(cache_residual_stream)
             dog_prediction = torch.argmax(dog_prediction_logits, dim=-1)
             self.assertEqual(1, dog_prediction.item())
+
+    def test_probe_save_load(self):
+        # Create dataset
+        llm = HookedTransformer.from_pretrained("gpt2")
+        def test_input_generator():
+            for _ in range(10):
+                yield ActivationGeneratorInput("the cat some words", 1, 0)
+                yield ActivationGeneratorInput("a cat some words", 1, 0)
+                yield ActivationGeneratorInput("the dog input text", 1, 1)
+                yield ActivationGeneratorInput("a dog some words", 1, 1)
+        class_labels = ["cat", "dog"]
+        residual_stream_dataset_generator = ActivationDatasetGenerator.create_residual_stream_generator(
+            llm=llm,
+            layer=2,
+            input_generator=test_input_generator,
+            class_labels=class_labels
+        )
+        with tempfile.TemporaryFile(mode="r+", encoding="utf-8") as file:
+            residual_stream_dataset_generator.generate_and_save_to(file)
+            loaded_dataset = ActivationDataset.load_from_file(file, device=llm.cfg.device)
+        # Train probe
+        probe, *_ = loaded_dataset.train_probe(
+            num_epochs=1,
+            learning_rate=0.01,
+            device=llm.cfg.device,
+        )
+        with tempfile.TemporaryFile(mode="r+b") as file:
+            probe.save_to_file(file)
+            loaded_probe = ActivationProbe.load_from_file(file, device=llm.cfg.device)
+        self.assertEqual(probe.linear1.in_features, loaded_probe.linear1.in_features)
+        self.assertEqual(probe.linear2.out_features, loaded_probe.linear2.out_features)
+        self.assertEqual(probe.linear1.out_features, loaded_probe.linear1.out_features)
+        self.assertEqual(probe._activation_dataset_meta_data, loaded_probe._activation_dataset_meta_data)
+        self.assertEqual(probe._meta_data, loaded_probe._meta_data)
+        print(loaded_probe._meta_data)
+        print(loaded_probe._activation_dataset_meta_data)
+        for param1, param2 in zip(probe.parameters(), loaded_probe.parameters()):
+            self.assertTrue(torch.equal(param1, param2), "Probe parameters do not match after save/load.")
