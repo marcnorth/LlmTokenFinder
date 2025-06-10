@@ -15,12 +15,19 @@ class AblationLlm:
     def __init__(self, llm: HookedTransformer):
         self.llm = llm
 
-    def forward(self, text: str, heads_to_ablate: list[AttentionHead] = (), token_movement_to_ablate: list[tuple[int | Token, int | Token]] = ()) -> tuple[Float[Tensor, "batch_size sequence_length d_vocab"], ActivationCache]:
+    def forward(
+            self,
+            text: str,
+            heads_to_ablate: list[AttentionHead] = (),
+            token_movement_to_ablate: list[tuple[int | Token, int | Token]] = (),
+            **kwargs
+    ) -> tuple[Float[Tensor, "batch_size sequence_length d_vocab"], ActivationCache]:
         """
         Forward pass through the model with optional ablation of specific attention heads.
         :param text: The input text to process.
         :param heads_to_ablate: A list of AttentionHead objects to ablate.
         :param token_movement_to_ablate: A list of tuples representing pairs of token positions to ablate movement between, ablate (from_position, to_position).
+        :param kwargs: Additional keyword arguments to pass to the model's run_with_cache method.
         :return: The output of the model and the activation cache.
         """
         self.llm.reset_hooks()
@@ -29,7 +36,7 @@ class AblationLlm:
         if token_movement_to_ablate:
             self._add_token_movement_ablation_hooks(token_movement_to_ablate)
         input_token_ids = self.llm.tokenizer.encode(text, return_tensors="pt", add_special_tokens=True)
-        output, cache = self.llm.run_with_cache(input_token_ids)
+        output, cache = self.llm.run_with_cache(input_token_ids, **kwargs)
         return output, cache
 
     def _add_attention_head_ablation_hooks(self, heads_to_ablate: list[AttentionHead]) -> None:

@@ -1,8 +1,8 @@
 from typing import TextIO
 
 from jaxtyping import Float, Int
-from torch import Tensor
-from torch.utils.data import TensorDataset
+from torch import Tensor, nn
+from torch.utils.data import TensorDataset, random_split, DataLoader
 import torch
 
 
@@ -30,6 +30,90 @@ class ActivationDataset(TensorDataset):
         A map from class label index to class label string.
         """
         return self._meta_data.get("class_labels", [])
+
+    @property
+    def activation_dim(self) -> int:
+        """
+        Returns the dimensionality of the activations.
+        :return: The number of features in the activation vectors.
+        """
+        return self[0][0].shape[0] if len(self) > 0 else 0
+
+    def train_probe(
+            self,
+            num_epochs: int = 10,
+            batch_size: int = 32,
+            learning_rate: float = 0.01,
+            training_test_split: float = 0.8,
+            device: str = "cuda",
+            return_history: bool = False
+    ) -> tuple["SingleLayerNet", DataLoader, DataLoader, dict[str, list[float]] | None]:
+        """
+        Trains a single-layer probe on the dataset.
+        :return: A tuple containing the trained probe model, the training and testing dataloaders and optionally the training history.
+        """
+        probe = SingleLayerNet(self.activation_dim, len(self.class_labels)).to(device=device)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(probe.parameters(), lr=learning_rate)
+        training_dataloader, testing_dataloader = self._create_probe_training_dataloaders(training_test_split, batch_size)
+        history = {
+            "training_accuracy": [],
+            "testing_accuracy": []
+        }
+        for epoch in range(num_epochs):
+            self._train_probe_for_one_epoch(probe, training_dataloader, optimizer, criterion)
+            if return_history:
+                history["training_accuracy"].append(self.evaluate_probe(probe, training_dataloader))
+                history["testing_accuracy"].append(self.evaluate_probe(probe, testing_dataloader))
+        probe.eval()
+        return (
+            probe,
+            training_dataloader,
+            testing_dataloader,
+            history if return_history else None
+        )
+
+    def _train_probe_for_one_epoch(
+            self,
+            probe: "SingleLayerNet",
+            dataloader: DataLoader,
+            optimizer: torch.optim.Optimizer,
+            criterion: nn.Module
+    ):
+        probe.train()
+        device = next(probe.parameters()).device
+        for activations, labels in dataloader:
+            activations, labels = activations.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = probe(activations)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+    def evaluate_probe(self, probe: "SingleLayerNet", dataloader: DataLoader) -> float:
+        """
+        :return: The accuracy of the probe on the dataset.
+        """
+        correct = 0
+        total = 0
+        probe.eval()
+        device = next(probe.parameters()).device
+        with torch.no_grad():
+            for activations, labels in dataloader:
+                activations, labels = activations.to(device), labels.to(device)
+                outputs = probe(activations)
+                _, predicted = torch.max(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        return correct / total if total > 0 else 0.0
+
+    def _create_probe_training_dataloaders(self, training_test_split: float, batch_size: int) -> tuple[DataLoader, DataLoader]:
+        training_dataset_length = int(len(self) * training_test_split)
+        training_dataset, testing_dataset = random_split(self, [training_dataset_length, len(self) - training_dataset_length])
+        return (
+            DataLoader(training_dataset, batch_size=batch_size, shuffle=True),
+            DataLoader(testing_dataset, batch_size=batch_size, shuffle=False)
+        )
 
     @staticmethod
     def load_from_file(file: TextIO, device: str = "cuda") -> "ActivationDataset":
@@ -60,3 +144,12 @@ class ActivationDataset(TensorDataset):
             labels=torch.tensor(labels, dtype=torch.int64, device=device),
             meta_data=meta_data,
         )
+
+
+class SingleLayerNet(nn.Module):
+    def __init__(self, num_input_features: int, num_classes: int):
+        super().__init__()
+        self.linear = nn.Linear(num_input_features, num_classes)
+
+    def forward(self, x):
+        return self.linear(x)

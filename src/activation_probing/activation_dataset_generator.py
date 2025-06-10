@@ -2,7 +2,9 @@ import json
 from dataclasses import dataclass
 from typing import TextIO, Callable, Generator
 from transformer_lens import HookedTransformer
+from llm_token_finder.ablation import AblationLlm
 from llm_token_finder.activation_analyser import AttentionHead
+from llm_token_finder.token_finder import Token
 
 
 @dataclass(slots=True)
@@ -39,15 +41,29 @@ class ActivationDatasetGenerator:
             meta_data = {}
         self._extra_meta_data = meta_data
 
-    def generate_and_save_to(self, output_file: TextIO):
+    def generate_and_save_to(
+            self,
+            output_file: TextIO,
+            heads_to_ablate: list[AttentionHead] = (),
+            token_movement_to_ablate: list[tuple[int | Token, int | Token]] = ()
+    ):
+        """
+        Generates the dataset and saves it to the specified output file.
+        :param output_file: A file-like object to write the dataset to. Each line will be a JSON object containing the activation and label.
+        :param heads_to_ablate: A list of AttentionHead objects to ablate.
+        :param token_movement_to_ablate: A list of tuples representing pairs of token positions to ablate movement between, ablate (from_position, to_position).
+        :return:
+        """
         output_file.write(json.dumps(self._meta_data) + "\n")
         self._llm.reset_hooks()
+        ablated_llm = AblationLlm(self._llm)
         for activation_input in self._input_generator():
             if len(self._class_labels) <= activation_input.label_class_index:
                 raise ValueError(f"Label class index {activation_input.label_class_index} is out of bounds for class labels: {self._class_labels}")
-            token_ids = self._llm.tokenizer.encode(activation_input.text, return_tensors="pt")
-            _, cache = self._llm.run_with_cache(
-                token_ids,
+            _, cache = ablated_llm.forward(
+                activation_input.text,
+                heads_to_ablate=heads_to_ablate,
+                token_movement_to_ablate=token_movement_to_ablate,
                 remove_batch_dim=True,
                 names_filter=lambda name: name == f"blocks.{self._layer}.attn.hook_result" if self._head else f"blocks.{self._layer}.hook_resid_post"
             )
