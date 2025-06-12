@@ -185,7 +185,5 @@ class AblationTest(unittest.TestCase):
         self.assertEqual(probe.linear1.out_features, loaded_probe.linear1.out_features)
         self.assertEqual(probe._activation_dataset_meta_data, loaded_probe._activation_dataset_meta_data)
         self.assertEqual(probe._meta_data, loaded_probe._meta_data)
-        print(loaded_probe._meta_data)
-        print(loaded_probe._activation_dataset_meta_data)
         for param1, param2 in zip(probe.parameters(), loaded_probe.parameters()):
             self.assertTrue(torch.equal(param1, param2), "Probe parameters do not match after save/load.")

@@ -46,13 +46,15 @@ class ActivationDataset(TensorDataset):
             batch_size: int = 32,
             learning_rate: float = 0.01,
             training_test_split: float = 0.8,
-            device: str = "cuda",
+            device: str = None,
             return_history: bool = False
     ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]] | None]:
         """
         Trains a single-layer probe on the dataset.
         :return: A tuple containing the trained probe model, the training and testing dataloaders and optionally the training history.
         """
+        if device is None:
+            device = self[0][0].device
         probe = ActivationProbe(
             self.activation_dim,
             len(self.class_labels),
@@ -121,7 +123,7 @@ class ActivationDataset(TensorDataset):
         )
 
     @staticmethod
-    def load_from_file(file: TextIO, device: str = "cuda") -> "ActivationDataset":
+    def load_from_file(file: TextIO, device: str = "cpu") -> "ActivationDataset":
         """
         Loads an ActivationDataset from a file.
         :param file: A file-like object containing the dataset.
