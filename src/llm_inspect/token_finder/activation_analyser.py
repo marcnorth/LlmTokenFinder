@@ -3,8 +3,7 @@ from jaxtyping import Float
 from torch import Tensor
 from transformer_lens import ActivationCache, HookedTransformer
 from transformers import PreTrainedTokenizer
-from llm_token_finder import TokenFinder
-from llm_token_finder.token_finder import Token
+from .token_finder import TokenFinder, Token
 
 
 class AttentionHead:
@@ -76,7 +75,7 @@ class ActivationAnalyzer:
     def find_heads_where_query_looks_at_values(
             self, query_token: Token | int,
             value_tokens: list[Token | int],
-            ignore_bos: bool = False
+            ignore_bos: bool = False # TODO: Maybe change this to a threshold, so the other tokens must be above a certain percentage of the bos token if it is higher (could be implemented by dividing the bos attention score by the value before comparing)
     ) -> list[AttentionHead]:
         """
         Find heads where the query token has the highest attention score on all value tokens.

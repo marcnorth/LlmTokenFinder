@@ -1,6 +1,6 @@
 import unittest
-from llm_token_finder import TokenFinder, TokenRange
-from llm_token_finder.token_finder import Token
+from llm_inspect import TokenFinder, TokenRange
+from llm_inspect import Token
 
 
 class TokenFinderTest(unittest.TestCase):

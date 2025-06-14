@@ -4,7 +4,7 @@ import torch
 from jaxtyping import Float, Int
 from torch import Tensor, nn
 from torch.utils.data import TensorDataset, random_split, DataLoader
-from activation_probing.probe import ActivationProbe
+from .probe import ActivationProbe
 
 
 class ActivationDataset(TensorDataset):

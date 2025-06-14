@@ -3,9 +3,9 @@ from dataclasses import dataclass
 import datetime
 from typing import TextIO, Callable, Generator
 from transformer_lens import HookedTransformer
-from llm_token_finder.ablation import AblationLlm
-from llm_token_finder.activation_analyser import AttentionHead
-from llm_token_finder.token_finder import Token
+from ..token_finder.ablation import AblationLlm
+from ..token_finder.activation_analyser import AttentionHead
+from ..token_finder.token_finder import Token
 
 
 @dataclass(slots=True)

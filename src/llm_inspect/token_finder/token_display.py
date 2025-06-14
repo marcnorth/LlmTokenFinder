@@ -4,9 +4,9 @@ from jaxtyping import Float
 from torch import Tensor
 from transformer_lens import ActivationCache
 from transformers import PreTrainedTokenizer
-from llm_token_finder import TokenRange
-from llm_token_finder.activation_analyser import AttentionHead
-from llm_token_finder.token_finder import Token
+from .token_finder import TokenRange
+from .activation_analyser import AttentionHead
+from .token_finder import Token
 
 
 class TokenDisplayer:

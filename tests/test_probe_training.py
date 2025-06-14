@@ -2,10 +2,10 @@ import tempfile
 import unittest
 import torch
 from transformer_lens import HookedTransformer
-from activation_probing.activation_dataset import ActivationDataset
-from activation_probing.activation_dataset_generator import ActivationDatasetGenerator, ActivationGeneratorInput
-from activation_probing.probe import ActivationProbe
-from llm_token_finder.activation_analyser import AttentionHead
+from llm_inspect import ActivationDataset
+from llm_inspect import ActivationDatasetGenerator, ActivationGeneratorInput
+from llm_inspect import ActivationProbe
+from llm_inspect import AttentionHead
 
 
 class AblationTest(unittest.TestCase):

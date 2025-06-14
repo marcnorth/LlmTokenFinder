@@ -1,9 +1,9 @@
 import unittest
 import torch
 from transformer_lens import HookedTransformer
-from llm_token_finder import ActivationAnalyzer, TokenFinder
-from llm_token_finder.ablation import AblationLlm
-from llm_token_finder.activation_analyser import AttentionHead
+from llm_inspect import ActivationAnalyzer, TokenFinder
+from llm_inspect import AblationLlm
+from llm_inspect import AttentionHead
 
 
 class AblationTest(unittest.TestCase):

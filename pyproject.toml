@@ -3,8 +3,8 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name            = "llm-token-finder"
-version         = "0.1.0"
+name            = "llm-inspect"
+version         = "0.2.1"
 description     = "Utility to find tokens in LLMs. Built for LLM interpretability research."
 authors         = [{name = "Marc North", email = "contact@marcnorth.co.uk"}]
 #readme          = "README.md"
@@ -20,3 +20,7 @@ dependencies    = [
 
 [tool.hatch.build.targets.sdist]
 exclude = ["examples/**", "docs/**"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["llm_inspect"]
+packages-dir = "src"

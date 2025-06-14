@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from transformers import PreTrainedTokenizer
-from llm_token_finder.token_finder import Token, TokenRange, TokenFinder
+from .token_finder import Token, TokenRange, TokenFinder
 
 
 @dataclass
