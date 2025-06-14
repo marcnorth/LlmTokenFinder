@@ -4,8 +4,8 @@ from jaxtyping import Float
 from torch import Tensor
 from transformer_lens import HookedTransformer, ActivationCache
 from transformer_lens.hook_points import HookPoint
-from .activation_analyser import AttentionHead
-from .token_finder import Token
+from ..common.attention_head import AttentionHead
+from ..token_finder import Token
 
 
 class AblationLlm:

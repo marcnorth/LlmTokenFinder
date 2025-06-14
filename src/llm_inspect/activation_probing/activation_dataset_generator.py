@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import datetime
 from typing import TextIO, Callable, Generator
 from transformer_lens import HookedTransformer
-from ..token_finder.ablation import AblationLlm
-from ..token_finder.activation_analyser import AttentionHead
+from ..ablation.ablation_llm import AblationLlm
+from ..common.attention_head import AttentionHead
 from ..token_finder.token_finder import Token
 
 

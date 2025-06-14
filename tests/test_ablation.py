@@ -1,9 +1,7 @@
 import unittest
 import torch
 from transformer_lens import HookedTransformer
-from llm_inspect import ActivationAnalyzer, TokenFinder
-from llm_inspect import AblationLlm
-from llm_inspect import AttentionHead
+from llm_inspect import AttentionHeadFinder, TokenFinder, AblationLlm, AttentionHead
 
 
 class AblationTest(unittest.TestCase):
@@ -12,7 +10,7 @@ class AblationTest(unittest.TestCase):
         self.llm = HookedTransformer.from_pretrained("gpt2-small")
         self.text = "The quick brown fox jumps over the lazy dog."
         self.token_finder = TokenFinder.create_from_tokenizer(self.text, self.llm.tokenizer)
-        self.activation_analyser = ActivationAnalyzer.from_forward_pass(self.llm, self.text)
+        self.activation_analyser = AttentionHeadFinder.from_forward_pass(self.llm, self.text)
 
     def test_attention_head_ablation(self):
         ablation_llm = AblationLlm(self.llm)

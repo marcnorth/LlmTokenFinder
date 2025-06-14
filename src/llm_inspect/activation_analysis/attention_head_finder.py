@@ -3,50 +3,11 @@ from jaxtyping import Float
 from torch import Tensor
 from transformer_lens import ActivationCache, HookedTransformer
 from transformers import PreTrainedTokenizer
-from .token_finder import TokenFinder, Token
+from ..token_finder.token_finder import TokenFinder, Token
+from ..common.attention_head import AttentionHead
 
 
-class AttentionHead:
-    """
-    Class representing an attention head in a transformer model.
-    :param layer: The 0-indexed layer index of the attention head in the model.
-    :param head: The 0-indexed head index of the attention head in the layer.
-    """
-    def __init__(self, layer: int, head: int):
-        self.layer = layer
-        self.head = head
-
-    def __eq__(self, other):
-        if not isinstance(other, AttentionHead):
-            return NotImplemented
-        return self.layer == other.layer and self.head == other.head
-
-    def __hash__(self):
-        return hash((self.layer, self.head))
-
-    def __repr__(self):
-        return f"{self.layer}.{self.head}"
-
-    @staticmethod
-    def intersection(heads: list[list["AttentionHead"]]) -> list["AttentionHead"]:
-        """
-        Find the intersection of a list of lists of AttentionHead objects.
-        :param heads: A list of lists of AttentionHead objects.
-        :return: A list of AttentionHead objects that are in all of the lists.
-        """
-        if not heads:
-            return []
-        intersection = set(heads[0])
-        for head_list in heads[1:]:
-            intersection &= set(head_list)
-        return list(intersection)
-
-
-class ActivationAnalyzer:
-    """
-    Class containing helper functions for analyzing activations
-    and parsing input tokens
-    """
+class AttentionHeadFinder:
 
     def __init__(self, tokens: list[str], cache: ActivationCache, space_token: str = "Ġ", new_line_token: str = "Ċ", bos_token: str | None = None):
         """
@@ -129,17 +90,17 @@ class ActivationAnalyzer:
         return matching_heads
 
     @staticmethod
-    def from_forward_pass(llm: HookedTransformer, input: str) -> "ActivationAnalyzer":
+    def from_forward_pass(llm: HookedTransformer, input: str) -> "AttentionHeadFinder":
         tokens = llm.tokenizer.tokenize(input, add_special_tokens=True)
         token_ids = llm.tokenizer.encode(input, return_tensors="pt")
         _, activation_cache = llm.run_with_cache(token_ids)
-        return ActivationAnalyzer.create_from_tokenizer(llm.tokenizer, tokens, activation_cache)
+        return AttentionHeadFinder.create_from_tokenizer(llm.tokenizer, tokens, activation_cache)
 
     @staticmethod
-    def create_from_tokenizer(tokenizer: PreTrainedTokenizer, tokens: list[str], cache: ActivationCache) -> "ActivationAnalyzer":
+    def create_from_tokenizer(tokenizer: PreTrainedTokenizer, tokens: list[str], cache: ActivationCache) -> "AttentionHeadFinder":
         space_special_character = tokenizer.tokenize(" hello")[0][0]
         new_line_special_character = tokenizer.tokenize("\nhello")[0][0]
         # Some tokenizers have bos_token set, but don't actually use it in the tokenization process (e.g. gpt2), so we check for it here.
         bos_check = tokenizer.tokenize("hello", add_special_tokens=True)[0]
         bos_token = tokenizer.bos_token if tokenizer.bos_token is not None and bos_check == tokenizer.bos_token else None
-        return ActivationAnalyzer(tokens, cache, space_token=space_special_character, new_line_token=new_line_special_character, bos_token=bos_token)
+        return AttentionHeadFinder(tokens, cache, space_token=space_special_character, new_line_token=new_line_special_character, bos_token=bos_token)

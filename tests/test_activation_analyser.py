@@ -1,6 +1,6 @@
 import unittest
 import torch
-from llm_inspect import TokenFinder, ActivationAnalyzer
+from llm_inspect import TokenFinder, AttentionHeadFinder
 from transformer_lens import HookedTransformer
 
 
@@ -10,7 +10,7 @@ class ActivationAnalyserTest(unittest.TestCase):
         self.llm = HookedTransformer.from_pretrained("gpt2-small")
         self.text = "The quick brown fox jumps over the lazy dog."
         self.token_finder = TokenFinder.create_from_tokenizer(self.text, self.llm.tokenizer)
-        self.activation_analyser = ActivationAnalyzer.from_forward_pass(self.llm, self.text)
+        self.activation_analyser = AttentionHeadFinder.from_forward_pass(self.llm, self.text)
 
     def test_find_heads_matching_criteria(self):
         # Every token looks at the previous token

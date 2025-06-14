@@ -1,6 +1,5 @@
 import unittest
-from llm_inspect import FunctionFinder, TokenRange
-from llm_inspect import Token
+from llm_inspect import FunctionFinder, TokenRange, Token
 
 
 class CodeScopeFinderTest(unittest.TestCase):

@@ -5,8 +5,8 @@ from torch import Tensor
 from transformer_lens import ActivationCache
 from transformers import PreTrainedTokenizer
 from .token_finder import TokenRange
-from .activation_analyser import AttentionHead
 from .token_finder import Token
+from ..activation_analysis.attention_head_finder import AttentionHead
 
 
 class TokenDisplayer:
