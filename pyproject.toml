@@ -22,5 +22,4 @@ dependencies    = [
 exclude = ["examples/**", "docs/**"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["llm_inspect"]
-packages-dir = "src"
+packages = ["/src/llm_inspect"]

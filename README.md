@@ -20,7 +20,7 @@ Assuming this project is a sibling to the project you want to use it in, add the
 
 ```
 dependencies    = [
-    "llm-token-finder @ {root:uri}/../TokenFinder"
+    "llm-inspect @ {root:uri}/../llm-inspect"
 ]
 ```
 
