@@ -100,7 +100,7 @@ class ActivationDatasetGenerator:
             "head": self._head,
             "class_labels": self._class_labels,
             "llm": self._llm.cfg.model_name,
-            "timestamp": datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "datetime": datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         } | self._extra_meta_data.copy()
 
     @staticmethod
