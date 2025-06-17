@@ -61,7 +61,7 @@ class TokenDisplayer:
         attention = activation_cache["pattern", head.layer][head.head]
         return self.html_for_pretty_colored_tokens_multi(tokens, attention.transpose(-2, -1))
 
-    def html_for_attention_pattern(selfself, tokens: list[str], activation_cache: ActivationCache, head: AttentionHead) -> cv.tokens.RenderedHTML:
+    def html_for_attention_pattern(self, tokens: list[str], activation_cache: ActivationCache, head: AttentionHead) -> cv.tokens.RenderedHTML:
         """:
         Generate HTML for the attention pattern of a given head
         """

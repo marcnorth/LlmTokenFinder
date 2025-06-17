@@ -44,18 +44,16 @@ class AblationTest(unittest.TestCase):
             input_generator=test_input_generator,
             class_labels=class_labels
         )
-        with tempfile.TemporaryFile(mode="r+", encoding="utf-8") as file:
-            residual_stream_dataset_generator.generate_and_save_to(file)
-            loaded_dataset = ActivationDataset.load_from_file(file, device=llm.cfg.device)
-        self.assertIsInstance(loaded_dataset, torch.utils.data.Dataset)
-        self.assertEqual(2, len(loaded_dataset))
-        self.assertIsInstance(loaded_dataset[0][0], torch.Tensor)
-        self.assertIsInstance(loaded_dataset[0][1], torch.Tensor)
-        self.assertEqual(3, loaded_dataset[0][1].item())
-        self.assertEqual((llm.cfg.d_model,), loaded_dataset[0][0].shape)
-        self.assertEqual(4, loaded_dataset[1][1].item())
-        self.assertEqual((llm.cfg.d_model,), loaded_dataset[1][0].shape)
-        self.assertEqual(class_labels, loaded_dataset.class_labels)
+        generated_dataset = residual_stream_dataset_generator.generate()
+        self.assertIsInstance(generated_dataset, torch.utils.data.Dataset)
+        self.assertEqual(2, len(generated_dataset))
+        self.assertIsInstance(generated_dataset[0][0], torch.Tensor)
+        self.assertIsInstance(generated_dataset[0][1], torch.Tensor)
+        self.assertEqual(3, generated_dataset[0][1].item())
+        self.assertEqual((llm.cfg.d_model,), generated_dataset[0][0].shape)
+        self.assertEqual(4, generated_dataset[1][1].item())
+        self.assertEqual((llm.cfg.d_model,), generated_dataset[1][0].shape)
+        self.assertEqual(class_labels, generated_dataset.class_labels)
 
     def test_meta_data(self):
         llm = HookedTransformer.from_pretrained("gpt2")

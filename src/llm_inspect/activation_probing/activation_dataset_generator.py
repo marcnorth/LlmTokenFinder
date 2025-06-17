@@ -1,8 +1,10 @@
 import json
+import tempfile
 from dataclasses import dataclass
 import datetime
 from typing import TextIO, Callable, Generator
 from transformer_lens import HookedTransformer
+from ..activation_probing.activation_dataset import ActivationDataset
 from ..ablation.ablation_llm import AblationLlm
 from ..common.attention_head import AttentionHead
 from ..token_finder.token_finder import Token
@@ -42,6 +44,15 @@ class ActivationDatasetGenerator:
             meta_data = {}
         self._extra_meta_data = meta_data
 
+    def generate(
+            self,
+            heads_to_ablate: list[AttentionHead] = (),
+            token_movement_to_ablate: list[tuple[int | Token, int | Token]] = ()
+    ) -> ActivationDataset:
+        with tempfile.TemporaryFile(mode="r+", encoding="utf-8") as file:
+            self.generate_and_save_to(file, heads_to_ablate, token_movement_to_ablate)
+            return ActivationDataset.load_from_file(file, device=self._llm.cfg.device)
+
     def generate_and_save_to(
             self,
             output_file: TextIO,
@@ -55,6 +66,9 @@ class ActivationDatasetGenerator:
         :param token_movement_to_ablate: A list of tuples representing pairs of token positions to ablate movement between, ablate (from_position, to_position).
         :return:
         """
+        meta_data = self._extra_meta_data
+        meta_data["heads_to_ablate"] = [str(head) for head in heads_to_ablate]
+        meta_data["token_movement_to_ablate"] = [f"{from_token.index if isinstance(from_token, Token) else from_token}>{to_token.index if isinstance(to_token, Token) else to_token}" for from_token, to_token in token_movement_to_ablate]
         output_file.write(json.dumps(self._meta_data) + "\n")
         self._llm.reset_hooks()
         ablated_llm = AblationLlm(self._llm)
@@ -69,10 +83,10 @@ class ActivationDatasetGenerator:
                 names_filter=lambda name: name == f"blocks.{self._layer}.attn.hook_result" if self._head else f"blocks.{self._layer}.hook_resid_post"
             )
             if self._head is not None:
-                # Extract the output of the specified attention head
+                # Extract the output of the specified attention head at a specific position (i.e. what is the attention head moving to that position)
                 activations = cache["result", self._layer][activation_input.token_position][self._head]
             else:
-                # Extract the residual stream of the specified layer
+                # Extract the residual stream of the specified layer at a specific position
                 activations = cache["resid_post", self._layer][activation_input.token_position]
             output_file.write(json.dumps({
                 "activation": activations.tolist(),
