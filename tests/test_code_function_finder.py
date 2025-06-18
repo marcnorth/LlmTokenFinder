@@ -1,4 +1,6 @@
 import unittest
+from transformers import AutoTokenizer
+
 from llm_inspect import FunctionFinder, TokenRange, Token
 
 
@@ -146,3 +148,21 @@ class CodeScopeFinderTest(unittest.TestCase):
         self.assertEqual("Ġstring", foo_scope.return_type_token.value)
         self.assertEqual(23, foo_scope.body_scope.start)
         self.assertEqual(29, foo_scope.body_scope.end)
+
+    def test_llama_tokenizer(self):
+        tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b")
+        code = """def foo_fn(x: List[str], y: str) -> float:
+            other_func(x, y)
+        """
+        function_finder = FunctionFinder.create_from_tokenizer(code, tokenizer)
+        foo_scope = function_finder.find_function_scope("foo_fn")
+        self.assertIsNotNone(foo_scope)
+
+    def test_gemma_tokenizer(self):
+        tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b")
+        code = """def foo_fn(x: List[str], y: str) -> float:
+            other_func(x, y)
+        """
+        function_finder = FunctionFinder.create_from_tokenizer(code, tokenizer)
+        foo_scope = function_finder.find_function_scope("foo_fn")
+        self.assertIsNotNone(foo_scope)

@@ -51,7 +51,7 @@ class FunctionFinder:
         self.space_token = space_token
         self.new_line_token = new_line_token
         self._language = self._detect_language()
-        self._token_finder = TokenFinder(self.tokens, space_token=self.space_token)
+        self._token_finder = TokenFinder(self.tokens, space_token=self.space_token, new_line_token=self.new_line_token)
 
     @property
     def token_finder(self) -> TokenFinder:
@@ -63,7 +63,7 @@ class FunctionFinder:
         This is pretty crude and just looks for some common keywords. Works for the specific experiment this was made for,
         but would need to be improved for general use.
         """
-        if "def" in self.tokens:
+        if "def" in self.tokens or f"{self.space_token}def" in self.tokens:
             return "python"
         if "func" in self.tokens:
             return "go"
@@ -104,14 +104,18 @@ class FunctionFinder:
         parameters_as_string = parameters_scope.to_string().replace(self.new_line_token, "\n").replace(self.space_token, " ")
         parameter_names = re.findall(r"([^():,]+):([^():,]+)", parameters_as_string)
         parameter_names = [(name.strip(), type_.strip()) for name, type_ in parameter_names]
-        remaining_parameter_search_scope = TokenRange(parameters_scope.start, parameters_scope.end, parameters_scope.context)
+        remaining_parameter_search_scope = TokenRange(parameters_scope.start, parameters_scope.end, parameters_scope.context, space_token=self.space_token, new_line_token=self.new_line_token)
         for parameter_name, parameter_type in parameter_names:
-            # Some tokenizers (e.g. llama) tokenize the first parameter with the opening bracket
             try:
                 parameter_name_tokens = remaining_parameter_search_scope.find_first_range(parameter_name, allow_space_prefix=True)
             except ValueError:
+                # Some tokenizers (e.g. llama) tokenize the first parameter with the opening bracket
                 parameter_name_tokens = remaining_parameter_search_scope.find_first_range(f"({parameter_name}", allow_space_prefix=True)
-            parameter_type_tokens = remaining_parameter_search_scope.find_first_range(parameter_type, allow_space_prefix=True)
+            try:
+                parameter_type_tokens = remaining_parameter_search_scope.find_first_range(parameter_type, allow_space_prefix=True)
+            except ValueError:
+                # Some tokenizers (e.g. gpt2) include commas in the parameter type tokenization
+                parameter_type_tokens = remaining_parameter_search_scope.find_first_range(f"{parameter_type},", allow_space_prefix=True)
             parameters.append(FunctionParameter(parameter_name_tokens, parameter_type_tokens))
             remaining_parameter_search_scope.start = parameter_type_tokens.end + 1
         # Find return type

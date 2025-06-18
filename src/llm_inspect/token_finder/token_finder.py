@@ -6,10 +6,12 @@ class TokenRange:
     Class representing a scope of indices in a list of tokens.
     Is essentially just a start and end index (inclusive), but is aware of the list it belongs to
     """
-    def __init__(self, start: int, end: int, context: list[str]):
+    def __init__(self, start: int, end: int, context: list[str], space_token: str = "Ġ", new_line_token: str = "Ċ"):
         self.start: int = start
         self.end: int = end if end is not None else len(context)
         self.context: list[str] = context
+        self.space_token: str = space_token
+        self.new_line_token: str = new_line_token
 
     def __len__(self) -> int:
         return self.end - self.start + 1
@@ -46,16 +48,16 @@ class TokenRange:
         return len(self.context) - self.start
 
     def find_first(self, token: str, allow_space_prefix=False) -> "Token":
-        return TokenFinder(self.context).find_first(token, self, allow_space_prefix)
+        return TokenFinder(self.context, space_token=self.space_token, new_line_token=self.new_line_token).find_first(token, self, allow_space_prefix)
 
     def find_last(self, token: str, allow_space_prefix=False) -> "Token":
-        return TokenFinder(self.context).find_last(token, self, allow_space_prefix)
+        return TokenFinder(self.context, space_token=self.space_token, new_line_token=self.new_line_token).find_last(token, self, allow_space_prefix)
 
     def find_all(self, token: str | list[str], allow_space_prefix=False) -> list["Token"]:
-        return TokenFinder(self.context).find_all(token, self, allow_space_prefix)
+        return TokenFinder(self.context, space_token=self.space_token, new_line_token=self.new_line_token).find_all(token, self, allow_space_prefix)
 
     def find_first_range(self, needle: str, allow_space_prefix=False) -> "TokenRange":
-        return TokenFinder(self.context).find_first_range(needle, self, allow_space_prefix)
+        return TokenFinder(self.context, space_token=self.space_token, new_line_token=self.new_line_token).find_first_range(needle, self, allow_space_prefix)
 
     def __contains__(self, index: int) -> bool:
         return self.start <= index <= self.end
@@ -192,7 +194,9 @@ class TokenFinder:
                 first_range = TokenRange(
                     haystack_index + scope.start if scope else haystack_index,
                     haystack_index + num_tokens - 1 + scope.start if scope else haystack_index + num_tokens - 1,
-                    self.tokens
+                    self.tokens,
+                    space_token=self.space_token,
+                    new_line_token=self.new_line_token
                 )
                 if first_range.start == first_range.end:
                     first_range = Token(first_range.start, self.tokens)
