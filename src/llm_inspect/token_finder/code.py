@@ -106,7 +106,11 @@ class FunctionFinder:
         parameter_names = [(name.strip(), type_.strip()) for name, type_ in parameter_names]
         remaining_parameter_search_scope = TokenRange(parameters_scope.start, parameters_scope.end, parameters_scope.context)
         for parameter_name, parameter_type in parameter_names:
-            parameter_name_tokens = remaining_parameter_search_scope.find_first_range(parameter_name, allow_space_prefix=True)
+            # Some tokenizers (e.g. llama) tokenize the first parameter with the opening bracket
+            try:
+                parameter_name_tokens = remaining_parameter_search_scope.find_first_range(parameter_name, allow_space_prefix=True)
+            except ValueError:
+                parameter_name_tokens = remaining_parameter_search_scope.find_first_range(f"({parameter_name}", allow_space_prefix=True)
             parameter_type_tokens = remaining_parameter_search_scope.find_first_range(parameter_type, allow_space_prefix=True)
             parameters.append(FunctionParameter(parameter_name_tokens, parameter_type_tokens))
             remaining_parameter_search_scope.start = parameter_type_tokens.end + 1
