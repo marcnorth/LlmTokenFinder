@@ -47,7 +47,7 @@ class ActivationDataset(TensorDataset):
             learning_rate: float = 0.01,
             training_test_split: float = 0.8,
             device: str = None,
-            return_history: bool = False
+            save_to: BinaryIO | None = None,
     ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]] | None]:
         """
         Trains a single-layer probe on the dataset.
@@ -69,15 +69,15 @@ class ActivationDataset(TensorDataset):
         }
         for epoch in range(num_epochs):
             self._train_probe_for_one_epoch(probe, training_dataloader, optimizer, criterion)
-            if return_history:
-                history["training_accuracy"].append(self.evaluate_probe(probe, training_dataloader))
-                history["testing_accuracy"].append(self.evaluate_probe(probe, testing_dataloader))
+            history["training_accuracy"].append(self.evaluate_probe(probe, training_dataloader))
+            history["testing_accuracy"].append(self.evaluate_probe(probe, testing_dataloader))
         probe.eval()
+            probe.save_to_file(save_to, training_history=history)
         return (
             probe,
             training_dataloader,
             testing_dataloader,
-            history if return_history else None
+            history
         )
 
     def _train_probe_for_one_epoch(

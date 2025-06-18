@@ -32,10 +32,12 @@ class ActivationProbe(nn.Module):
         x = self.linear2(x)
         return x
 
-    def save_to_file(self, file: BinaryIO) -> None:
+    def save_to_file(self, file: BinaryIO, training_history: dict = None) -> None:
         meta_data = self._meta_data
         if self._activation_dataset_meta_data is not None:
             meta_data["activation_dataset"] = self._activation_dataset_meta_data
+        if training_history is not None:
+            meta_data["training_history"] = training_history
         meta_data["version"] = self._VERSION
         meta_data["num_input_features"] = self.linear1.in_features
         meta_data["num_classes"] = self.linear2.out_features
