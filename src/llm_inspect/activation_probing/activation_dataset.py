@@ -1,4 +1,4 @@
-from typing import TextIO
+from typing import TextIO, BinaryIO
 import json
 import torch
 from jaxtyping import Float, Int
@@ -72,6 +72,7 @@ class ActivationDataset(TensorDataset):
             history["training_accuracy"].append(self.evaluate_probe(probe, training_dataloader))
             history["testing_accuracy"].append(self.evaluate_probe(probe, testing_dataloader))
         probe.eval()
+        if save_to is not None:
             probe.save_to_file(save_to, training_history=history)
         return (
             probe,
