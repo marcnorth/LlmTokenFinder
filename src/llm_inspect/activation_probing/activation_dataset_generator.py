@@ -56,7 +56,7 @@ class ActivationDatasetGenerator:
 
     def generate_and_save_to(
             self,
-            output_file: TextIO,
+            output_file: TextIO | str,
             heads_to_ablate: list[AttentionHead] = (),
             token_movement_to_ablate: list[tuple[int | Token, int | Token]] = None
     ):
@@ -67,6 +67,9 @@ class ActivationDatasetGenerator:
         :param token_movement_to_ablate: A list of tuples representing pairs of token positions to ablate movement between, ablate (from_position, to_position).
         :return:
         """
+        if isinstance(output_file, str):
+            with open(output_file, mode="w+", encoding="utf-8") as file:
+                return self.generate_and_save_to(file)
         if token_movement_to_ablate is None:
             token_movement_to_ablate = []
         meta_data = self._extra_meta_data
@@ -96,6 +99,7 @@ class ActivationDatasetGenerator:
                 "activation": activations.tolist(),
                 "label": activation_input.label_class_index,
             }) + "\n")
+        return None
 
     @property
     def _meta_data(self) -> dict[str, str | int | None]:
