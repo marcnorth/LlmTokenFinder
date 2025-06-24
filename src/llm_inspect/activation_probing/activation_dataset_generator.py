@@ -87,11 +87,13 @@ class ActivationDatasetGenerator:
                 heads_to_ablate=heads_to_ablate,
                 token_movement_to_ablate=input_token_movement_to_ablate,
                 remove_batch_dim=True,
-                names_filter=lambda name: name == f"blocks.{self._layer}.attn.hook_result" if self._head else f"blocks.{self._layer}.hook_resid_post"
+                names_filter=self._names_filter
             )
             if self._head is not None:
                 # Extract the output of the specified attention head at a specific position (i.e. what is the attention head moving to that position)
                 activations = cache["result", self._layer][activation_input.token_position][self._head]
+            elif self._layer == -1:
+                activations = cache["resid_pre", 0][activation_input.token_position]
             else:
                 # Extract the residual stream of the specified layer at a specific position
                 activations = cache["resid_post", self._layer][activation_input.token_position]
@@ -111,6 +113,12 @@ class ActivationDatasetGenerator:
             "datetime": datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         } | self._extra_meta_data.copy()
 
+    def _names_filter(self, name: str) -> bool:
+        if self._head is None:
+            return name == (f"blocks.{self._layer}.hook_resid_post" if self._layer > -1 else "blocks.0.hook_resid_pre")
+        else:
+            return name == f"blocks.{self._layer}.attn.hook_result"
+
     @staticmethod
     def create_residual_stream_generator(
         llm: HookedTransformer,
@@ -124,7 +132,7 @@ class ActivationDatasetGenerator:
         :param llm: The language model to use for generating the dataset.
         :param input_generator: An iterator that yields input text for each forward pass. Each item should be a tuple of (input_text, token_position). Token_position can either be an int or a callable that will return an int given the corresponding input_text.
         :param class_labels: A list of class labels for the dataset. This will be used to create metadata for the dataset.
-        :param layer: The 0-indexed layer number from which to extract residual stream activations.
+        :param layer: The 0-indexed layer number from which to extract residual stream activations. -1 will get the residual stream before the first attention block.
         :param meta_data: Additional metadata to save with the dataset.
         :return: An instance of ActivationDatasetGenerator configured for residual stream activations.
         """

@@ -216,3 +216,31 @@ class ProbeTrainingTest(unittest.TestCase):
         self.assertEqual(probe._meta_data, loaded_probe._meta_data)
         for param1, param2 in zip(probe.parameters(), loaded_probe.parameters()):
             self.assertTrue(torch.equal(param1, param2), "Probe parameters do not match after save/load.")
+
+    def test_generate_residual_stream_embedding_dataset(self):
+        # Generate a residual stream dataset BEFORE any attention layers
+        llm = HookedTransformer.from_pretrained("gpt2")
+        def test_input_generator():
+            for i in range(100):
+                yield ActivationGeneratorInput("one text", 1, 0)
+                yield ActivationGeneratorInput("two text", 1, 1)
+        class_labels = ["one", "two"]
+        # Residual stream at 'text' token: Probe should work at layer 0 (after first attention block), not after embedding (before attention block)
+        residual_stream_dataset_generator_post_0 = ActivationDatasetGenerator.create_residual_stream_generator(
+            llm=llm,
+            layer=0,
+            input_generator=test_input_generator,
+            class_labels=class_labels
+        )
+        residual_stream_dataset_generator_pre_0 = ActivationDatasetGenerator.create_residual_stream_generator(
+            llm=llm,
+            layer=-1,
+            input_generator=test_input_generator,
+            class_labels=class_labels
+        )
+        post_0_dataset = residual_stream_dataset_generator_post_0.generate()
+        pre_0_dataset = residual_stream_dataset_generator_pre_0.generate()
+        post_0_probe, _, _, post_0_history = post_0_dataset.train_probe()
+        pre_0_probe, _, _, pre_0_history = pre_0_dataset.train_probe()
+        self.assertGreaterEqual(post_0_history["testing_accuracy"][-1], 0.9)
+        self.assertLessEqual(pre_0_history["testing_accuracy"][-1], 0.7)
