@@ -44,11 +44,11 @@ class ActivationDataset(TensorDataset):
             self,
             num_epochs: int = 10,
             batch_size: int = 32,
-            learning_rate: float = 0.01,
+            learning_rate: float = 0.001,
             training_test_split: float = 0.8,
             device: str = None,
             save_to: BinaryIO | None = None,
-    ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]] | None]:
+    ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]]]:
         """
         Trains a single-layer probe on the dataset.
         :return: A tuple containing the trained probe model, the training and testing dataloaders and optionally the training history.

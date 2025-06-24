@@ -5,7 +5,7 @@ from transformer_lens import HookedTransformer
 from llm_inspect import ActivationDataset, ActivationDatasetGenerator, ActivationGeneratorInput, ActivationProbe, AttentionHead
 
 
-class AblationTest(unittest.TestCase):
+class ProbeTrainingTest(unittest.TestCase):
 
     def test_generate_residual_stream_dataset(self):
         llm = HookedTransformer.from_pretrained("gpt2")
@@ -146,6 +146,40 @@ class AblationTest(unittest.TestCase):
             dog_prediction_logits = probe(cache_residual_stream)
             dog_prediction = torch.argmax(dog_prediction_logits, dim=-1)
             self.assertEqual(1, dog_prediction.item())
+
+    def test_ablate_per_input(self):
+        llm = HookedTransformer.from_pretrained("gpt2")
+        def test_input_generator(with_ablation):
+            for _ in range(50):
+                yield ActivationGeneratorInput("cat a here", 2, 0, [(0, 2)] if with_ablation else None)
+                yield ActivationGeneratorInput("cat here", 1, 0, [(0, 1)] if with_ablation else None)
+                yield ActivationGeneratorInput("dog a here", 2, 1, [(0, 2)] if with_ablation else None)
+                yield ActivationGeneratorInput("dog here", 1, 1, [(0, 1)] if with_ablation else None)
+        class_labels = ["cat", "dog"]
+        # Train unablated probe
+        unablated_residual_stream_dataset_generator = ActivationDatasetGenerator.create_residual_stream_generator(
+            llm=llm,
+            layer=0,
+            input_generator=lambda: test_input_generator(with_ablation=False),
+            class_labels=class_labels
+        )
+        unablated_residual_stream_dataset = unablated_residual_stream_dataset_generator.generate()
+        unablated_probe, _, _, unablated_history = unablated_residual_stream_dataset.train_probe(learning_rate=0.001)
+        # Train ablated probe
+        ablated_residual_stream_dataset_generator = ActivationDatasetGenerator.create_residual_stream_generator(
+            llm=llm,
+            layer=0,
+            input_generator=lambda: test_input_generator(with_ablation=True),
+            class_labels=class_labels
+        )
+        ablated_residual_stream_dataset = ablated_residual_stream_dataset_generator.generate()
+        ablated_probe, _, _, ablated_history = ablated_residual_stream_dataset.train_probe(learning_rate=0.001)
+        # Compare accuracies
+        unablated_test_accuracy = unablated_history["testing_accuracy"][-1]
+        ablated_test_accuracy = ablated_history["testing_accuracy"][-1]
+        self.assertAlmostEqual(1., unablated_test_accuracy)
+        self.assertGreaterEqual(0.7, ablated_test_accuracy)
+        self.assertLessEqual(0.3, ablated_test_accuracy)
 
     def test_probe_save_load(self):
         # Create dataset

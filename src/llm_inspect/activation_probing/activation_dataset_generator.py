@@ -15,6 +15,7 @@ class ActivationGeneratorInput:
     text: str
     token_position: int
     label_class_index: int
+    token_positions_to_ablate: list[tuple[int | Token, int | Token]] = None
 
 
 class ActivationDatasetGenerator:
@@ -47,7 +48,7 @@ class ActivationDatasetGenerator:
     def generate(
             self,
             heads_to_ablate: list[AttentionHead] = (),
-            token_movement_to_ablate: list[tuple[int | Token, int | Token]] = ()
+            token_movement_to_ablate: list[tuple[int | Token, int | Token]] = None
     ) -> ActivationDataset:
         with tempfile.TemporaryFile(mode="r+", encoding="utf-8") as file:
             self.generate_and_save_to(file, heads_to_ablate, token_movement_to_ablate)
@@ -57,7 +58,7 @@ class ActivationDatasetGenerator:
             self,
             output_file: TextIO,
             heads_to_ablate: list[AttentionHead] = (),
-            token_movement_to_ablate: list[tuple[int | Token, int | Token]] = ()
+            token_movement_to_ablate: list[tuple[int | Token, int | Token]] = None
     ):
         """
         Generates the dataset and saves it to the specified output file.
@@ -66,6 +67,8 @@ class ActivationDatasetGenerator:
         :param token_movement_to_ablate: A list of tuples representing pairs of token positions to ablate movement between, ablate (from_position, to_position).
         :return:
         """
+        if token_movement_to_ablate is None:
+            token_movement_to_ablate = []
         meta_data = self._extra_meta_data
         meta_data["heads_to_ablate"] = [str(head) for head in heads_to_ablate]
         meta_data["token_movement_to_ablate"] = [f"{from_token.index if isinstance(from_token, Token) else from_token}>{to_token.index if isinstance(to_token, Token) else to_token}" for from_token, to_token in token_movement_to_ablate]
@@ -75,10 +78,11 @@ class ActivationDatasetGenerator:
         for activation_input in self._input_generator():
             if len(self._class_labels) <= activation_input.label_class_index:
                 raise ValueError(f"Label class index {activation_input.label_class_index} is out of bounds for class labels: {self._class_labels}")
+            input_token_movement_to_ablate = token_movement_to_ablate + activation_input.token_positions_to_ablate if activation_input.token_positions_to_ablate else []
             _, cache = ablated_llm.forward(
                 activation_input.text,
                 heads_to_ablate=heads_to_ablate,
-                token_movement_to_ablate=token_movement_to_ablate,
+                token_movement_to_ablate=input_token_movement_to_ablate,
                 remove_batch_dim=True,
                 names_filter=lambda name: name == f"blocks.{self._layer}.attn.hook_result" if self._head else f"blocks.{self._layer}.hook_resid_post"
             )
