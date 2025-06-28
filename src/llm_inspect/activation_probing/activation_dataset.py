@@ -46,9 +46,10 @@ class ActivationDataset(TensorDataset):
             batch_size: int = 32,
             learning_rate: float = 0.001,
             training_test_split: float = 0.8,
+            weight_decay: float = 1e-3,
             device: str = None,
             save_to: BinaryIO | None = None,
-    ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]]]:
+    ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]]]: # TODO: Change return to just the probe, save history in metadata
         """
         Trains a single-layer probe on the dataset.
         :return: A tuple containing the trained probe model, the training and testing dataloaders and optionally the training history.
@@ -61,7 +62,7 @@ class ActivationDataset(TensorDataset):
             activation_dataset_meta_data=self.meta_data,
         ).to(device=device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(probe.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(probe.parameters(), lr=learning_rate, weight_decay=weight_decay)
         training_dataloader, testing_dataloader = self._create_probe_training_dataloaders(training_test_split, batch_size)
         history = {
             "training_accuracy": [],

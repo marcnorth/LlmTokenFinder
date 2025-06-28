@@ -147,6 +147,30 @@ class ProbeTrainingTest(unittest.TestCase):
             dog_prediction = torch.argmax(dog_prediction_logits, dim=-1)
             self.assertEqual(1, dog_prediction.item())
 
+    def test_weight_decay(self):
+        llm = HookedTransformer.from_pretrained("gpt2")
+        def test_input_generator():
+            for _ in range(50):
+                yield ActivationGeneratorInput("the cat some words", 1, 0)
+                yield ActivationGeneratorInput("the dog input text", 1, 1)
+        class_labels = ["cat", "dog"]
+        residual_stream_dataset_generator = ActivationDatasetGenerator.create_residual_stream_generator(
+            llm=llm,
+            layer=2,
+            input_generator=test_input_generator,
+            class_labels=class_labels
+        )
+        residual_stream_dataset = residual_stream_dataset_generator.generate()
+        no_weight_decay_probe, _, _, _ = residual_stream_dataset.train_probe(weight_decay=0.)
+        small_weight_decay_probe, _, _, _ = residual_stream_dataset.train_probe(weight_decay=1e-4)
+        big_weight_decay_probe, _, _, _ = residual_stream_dataset.train_probe(weight_decay=1e2)
+        # Check magnitude of parameters
+        no_weight_decay_weights = torch.linalg.norm(no_weight_decay_probe.linear1.weight).item() + torch.linalg.norm(no_weight_decay_probe.linear2.weight).item()
+        small_weight_decay_weights = torch.linalg.norm(small_weight_decay_probe.linear1.weight).item() + torch.linalg.norm(small_weight_decay_probe.linear2.weight).item()
+        big_weight_decay_weights = torch.linalg.norm(big_weight_decay_probe.linear1.weight).item() + torch.linalg.norm(big_weight_decay_probe.linear2.weight).item()
+        self.assertGreater(no_weight_decay_weights, small_weight_decay_weights)
+        self.assertGreater(small_weight_decay_weights, big_weight_decay_weights)
+
     def test_ablate_per_input(self):
         llm = HookedTransformer.from_pretrained("gpt2")
         def test_input_generator(with_ablation):
