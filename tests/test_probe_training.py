@@ -122,7 +122,7 @@ class ProbeTrainingTest(unittest.TestCase):
             residual_stream_dataset_generator.generate_and_save_to(file)
             loaded_dataset = ActivationDataset.load_from_file(file, device=llm.cfg.device)
         # Train probe
-        probe, *_ = loaded_dataset.train_probe(
+        probe = loaded_dataset.train_probe(
             num_epochs=10,
             learning_rate=0.01,
             device=llm.cfg.device,
@@ -161,9 +161,9 @@ class ProbeTrainingTest(unittest.TestCase):
             class_labels=class_labels
         )
         residual_stream_dataset = residual_stream_dataset_generator.generate()
-        no_weight_decay_probe, _, _, _ = residual_stream_dataset.train_probe(weight_decay=0.)
-        small_weight_decay_probe, _, _, _ = residual_stream_dataset.train_probe(weight_decay=1e-4)
-        big_weight_decay_probe, _, _, _ = residual_stream_dataset.train_probe(weight_decay=1e2)
+        no_weight_decay_probe = residual_stream_dataset.train_probe(weight_decay=0.)
+        small_weight_decay_probe = residual_stream_dataset.train_probe(weight_decay=1e-4)
+        big_weight_decay_probe = residual_stream_dataset.train_probe(weight_decay=1e2)
         # Check magnitude of parameters
         no_weight_decay_weights = torch.linalg.norm(no_weight_decay_probe.linear1.weight).item() + torch.linalg.norm(no_weight_decay_probe.linear2.weight).item()
         small_weight_decay_weights = torch.linalg.norm(small_weight_decay_probe.linear1.weight).item() + torch.linalg.norm(small_weight_decay_probe.linear2.weight).item()
@@ -188,7 +188,7 @@ class ProbeTrainingTest(unittest.TestCase):
             class_labels=class_labels
         )
         unablated_residual_stream_dataset = unablated_residual_stream_dataset_generator.generate()
-        unablated_probe, _, _, unablated_history = unablated_residual_stream_dataset.train_probe(learning_rate=0.001)
+        unablated_probe = unablated_residual_stream_dataset.train_probe(learning_rate=0.001)
         # Train ablated probe
         ablated_residual_stream_dataset_generator = ActivationDatasetGenerator.create_residual_stream_generator(
             llm=llm,
@@ -197,13 +197,13 @@ class ProbeTrainingTest(unittest.TestCase):
             class_labels=class_labels
         )
         ablated_residual_stream_dataset = ablated_residual_stream_dataset_generator.generate()
-        ablated_probe, _, _, ablated_history = ablated_residual_stream_dataset.train_probe(learning_rate=0.001)
+        ablated_probe = ablated_residual_stream_dataset.train_probe(learning_rate=0.001)
         # Compare accuracies
-        unablated_test_accuracy = unablated_history["testing_accuracy"][-1]
-        ablated_test_accuracy = ablated_history["testing_accuracy"][-1]
-        self.assertAlmostEqual(1., unablated_test_accuracy)
-        self.assertGreaterEqual(0.7, ablated_test_accuracy)
-        self.assertLessEqual(0.3, ablated_test_accuracy)
+        unablated_accuracy = unablated_probe.final_validation_accuracy
+        ablated_accuracy = ablated_probe.final_validation_accuracy
+        self.assertAlmostEqual(1., unablated_accuracy)
+        self.assertGreaterEqual(0.7, ablated_accuracy)
+        self.assertLessEqual(0.3, ablated_accuracy)
 
     def test_probe_save_load(self):
         # Create dataset
@@ -225,7 +225,7 @@ class ProbeTrainingTest(unittest.TestCase):
             residual_stream_dataset_generator.generate_and_save_to(file)
             loaded_dataset = ActivationDataset.load_from_file(file, device=llm.cfg.device)
         # Train probe
-        probe, *_ = loaded_dataset.train_probe(
+        probe = loaded_dataset.train_probe(
             num_epochs=1,
             learning_rate=0.01,
             device=llm.cfg.device,
@@ -264,7 +264,7 @@ class ProbeTrainingTest(unittest.TestCase):
         )
         post_0_dataset = residual_stream_dataset_generator_post_0.generate()
         pre_0_dataset = residual_stream_dataset_generator_pre_0.generate()
-        post_0_probe, _, _, post_0_history = post_0_dataset.train_probe()
-        pre_0_probe, _, _, pre_0_history = pre_0_dataset.train_probe()
-        self.assertGreaterEqual(post_0_history["testing_accuracy"][-1], 0.9)
-        self.assertLessEqual(pre_0_history["testing_accuracy"][-1], 0.7)
+        post_0_probe = post_0_dataset.train_probe()
+        pre_0_probe = pre_0_dataset.train_probe()
+        self.assertGreaterEqual(post_0_probe.final_validation_accuracy, 0.9)
+        self.assertLessEqual(pre_0_probe.final_validation_accuracy, 0.7)

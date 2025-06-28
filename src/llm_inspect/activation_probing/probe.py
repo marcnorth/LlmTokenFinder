@@ -1,7 +1,14 @@
 import datetime
+from dataclasses import dataclass, field
 from typing import Any, BinaryIO
 import torch
 from torch import nn
+
+
+@dataclass
+class TrainingHistory:
+    training_accuracy: list[float] = field(default_factory=list)
+    validation_accuracy: list[float] = field(default_factory=list)
 
 
 class ActivationProbe(nn.Module):
@@ -32,12 +39,30 @@ class ActivationProbe(nn.Module):
         x = self.linear2(x)
         return x
 
-    def save_to_file(self, file: BinaryIO, training_history: dict = None) -> None:
+    @property
+    def training_history(self) -> TrainingHistory:
+        if "training_history" not in self._meta_data:
+            raise ValueError("No training history found in the probe metadata.")
+        return self._meta_data["training_history"]
+
+    @property
+    def final_validation_accuracy(self) -> float:
+        if len(self.training_history.validation_accuracy) == 0:
+            raise ValueError("No validation accuracy found in the training history.")
+        return self.training_history.validation_accuracy[-1]
+
+    def add_training_history(self, training_history: TrainingHistory) -> None:
+        if "training_history" not in self._meta_data:
+            self._meta_data["training_history"] = training_history
+        else:
+            existing_history = self._meta_data["training_history"]
+            existing_history.training_accuracy.extend(training_history.training_accuracy)
+            existing_history.validation_accuracy.extend(training_history.validation_accuracy)
+
+    def save_to_file(self, file: BinaryIO) -> None:
         meta_data = self._meta_data
         if self._activation_dataset_meta_data is not None:
             meta_data["activation_dataset"] = self._activation_dataset_meta_data
-        if training_history is not None:
-            meta_data["training_history"] = training_history
         meta_data["version"] = self._VERSION
         meta_data["num_input_features"] = self.linear1.in_features
         meta_data["num_classes"] = self.linear2.out_features
@@ -52,7 +77,8 @@ class ActivationProbe(nn.Module):
     @staticmethod
     def load_from_file(file: BinaryIO, device: str = "cpu") -> "ActivationProbe":
         file.seek(0)
-        data = torch.load(file)
+        with torch.serialization.safe_globals([TrainingHistory]):
+            data = torch.load(file)
         meta_data = data["meta_data"]
         state_dict = data["state_dict"]
         if meta_data.get("version", 0) != ActivationProbe._VERSION:

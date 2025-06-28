@@ -4,7 +4,7 @@ import torch
 from jaxtyping import Float, Int
 from torch import Tensor, nn
 from torch.utils.data import TensorDataset, random_split, DataLoader
-from .probe import ActivationProbe
+from .probe import ActivationProbe, TrainingHistory
 
 
 class ActivationDataset(TensorDataset):
@@ -49,7 +49,7 @@ class ActivationDataset(TensorDataset):
             weight_decay: float = 1e-3,
             device: str = None,
             save_to: BinaryIO | None = None,
-    ) -> tuple[ActivationProbe, DataLoader, DataLoader, dict[str, list[float]]]: # TODO: Change return to just the probe, save history in metadata
+    ) -> ActivationProbe:
         """
         Trains a single-layer probe on the dataset.
         :return: A tuple containing the trained probe model, the training and testing dataloaders and optionally the training history.
@@ -64,23 +64,16 @@ class ActivationDataset(TensorDataset):
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(probe.parameters(), lr=learning_rate, weight_decay=weight_decay)
         training_dataloader, testing_dataloader = self._create_probe_training_dataloaders(training_test_split, batch_size)
-        history = {
-            "training_accuracy": [],
-            "testing_accuracy": []
-        }
+        history = TrainingHistory()
         for epoch in range(num_epochs):
             self._train_probe_for_one_epoch(probe, training_dataloader, optimizer, criterion)
-            history["training_accuracy"].append(self.evaluate_probe(probe, training_dataloader))
-            history["testing_accuracy"].append(self.evaluate_probe(probe, testing_dataloader))
+            history.training_accuracy.append(self.evaluate_probe(probe, training_dataloader))
+            history.validation_accuracy.append(self.evaluate_probe(probe, testing_dataloader))
         probe.eval()
+        probe.add_training_history(history)
         if save_to is not None:
-            probe.save_to_file(save_to, training_history=history)
-        return (
-            probe,
-            training_dataloader,
-            testing_dataloader,
-            history
-        )
+            probe.save_to_file(save_to)
+        return probe
 
     def _train_probe_for_one_epoch(
             self,
